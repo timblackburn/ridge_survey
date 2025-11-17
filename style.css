@@ -1,0 +1,358 @@
+/*================================================================
+    1. GLOBAL & FONT FIXES
+================================================================*/
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+}
+
+#app-container {
+    position: relative;
+    height: 100%;
+    width: 100%;
+}
+
+/*================================================================
+    2. MAP & MAP UI (MOBILE-FIRST)
+================================================================*/
+#map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #e0e0e0;
+    z-index: 1;
+    transition: left 0.3s ease, width 0.3s ease; /* For desktop panel */
+}
+
+#top-ui {
+    position: absolute;
+    top: 15px;
+    left: 10px;
+    right: 10px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: left 0.3s ease; /* For desktop panel */
+}
+
+#search-bar {
+    position: relative; /* For dropdown */
+    display: flex;
+    align-items: center;
+    background-color: #fff;
+    padding: 10px 15px;
+    border-radius: 50px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    z-index: 2; /* *** FIX: Higher than pills *** */
+}
+#search-bar .search-icon { margin-right: 10px; font-size: 1.2em; }
+#search-bar input { border: none; outline: none; font-size: 1em; width: 100%; }
+
+/* NEW: Search results dropdown */
+#search-results-dropdown {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: calc(100% + 5px); /* Position below search bar */
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000; /* Above all other UI */
+}
+#search-results-dropdown.active {
+    display: block;
+}
+#search-results-dropdown ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+#search-results-dropdown li {
+    padding: 10px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+#search-results-dropdown li:last-child {
+    border-bottom: none;
+}
+#search-results-dropdown li:hover {
+    background: #f5f5f5;
+}
+
+
+#filter-pills { 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 8px; 
+    position: relative; /* For z-index */
+    z-index: 1; /* *** FIX: Lower than search *** */
+}
+.pill { background-color: #fff; border: 1px solid #dcdcdc; border-radius: 20px; padding: 8px 16px; font-size: 0.9em; font-weight: 500; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.pill:hover { background-color: #f5f5f5; }
+
+/* Active Pill Style (Mobile) */
+#filter-pills .pill.active-pill {
+    background-color: #666;
+    color: white;
+    border-color: #666;
+}
+
+/* Location Button */
+#location-control {
+    position: absolute;
+    top: 135px; /* Below pills on mobile */
+    right: 10px;
+    z-index: 10;
+    transition: left 0.3s ease; /* For desktop panel */
+}
+#location-button { width: 30px; height: 30px; line-height: 30px; text-align: center; font-size: 1.4em; text-decoration: none; color: #333; }
+#location-button.state-off::before { content: '⌖'; }
+#location-button.state-following::before { content: '●'; color: #4285F4; }
+#location-button.state-error::before { content: '✖'; color: #E63946; }
+
+/* Leaflet Zoom Control */
+.leaflet-top.leaflet-right {
+    top: 175px; /* Below location on mobile */
+    z-index: 5;
+}
+
+/*================================================================
+    3. BOTTOM SHEET (MOBILE-FIRST)
+================================================================*/
+#bottom-sheet {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 20;
+    background-color: #fff;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+    height: 45vh; 
+    transform: translateY(calc(100% - 60px)); /* Minimized state */
+    transition: transform 0.3s ease-out, height 0.3s ease-out;
+}
+
+#bottom-sheet.expanded {
+    transform: translateY(0); /* Expanded state */
+}
+
+.handle {
+    width: 40px;
+    height: 5px;
+    background-color: #ccc;
+    border-radius: 2.5px;
+    margin: 10px auto;
+    cursor: ns-resize;
+}
+
+/*================================================================
+    4. PANEL CONTENT (SHARED)
+================================================================*/
+.sheet-content {
+    height: calc(45vh - 15px); /* Mobile height calc (45vh - handle) */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; 
+    position: relative; /* For close button */
+}
+
+.sheet-header {
+    padding: 0 20px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.sheet-header h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    flex-grow: 1; 
+    min-width: 0; 
+}
+
+#follow-map-toggle {
+    flex-shrink: 0;
+    margin-left: 10px;
+    font-size: 0.8em;
+    padding: 6px 12px;
+}
+#follow-map-toggle.active {
+    background-color: #4285F4;
+    color: white;
+    border-color: #4285F4;
+}
+
+.scrollable-content {
+    padding: 0 20px 40px 20px;
+    overflow-y: auto;
+    flex-grow: 1;
+    box-sizing: border-box;
+}
+
+/* All other shared styles */
+.back-button { background: #eee; border: none; font-size: 1.2em; font-weight: bold; border-radius: 50%; width: 30px; height: 30px; margin-right: 10px; cursor: pointer; line-height: 30px; padding: 0; }
+.back-button:hover { background: #ddd; }
+.item-list { list-style: none; padding: 0; margin: 0; }
+.item-list li { padding: 12px 10px; border-bottom: 1px solid #eee; font-size: 1.1em; cursor: pointer; transition: background-color 0.2s; }
+.item-list li:hover { background-color: #f5f5f5; }
+.item-list a { color: inherit; text-decoration: none; display: block; }
+.prop-grid { display: grid; grid-template-columns: 1fr; }
+.prop-grid div { font-size: 0.95em; }
+.prop-grid div strong { display: block; color: #555; font-size: 0.9em; margin-bottom: 2px; }
+.prop-note { font-size: 0.8em; color: #777; border-top: 1px solid #eee; padding-top: 10px; margin-top: 15px; }
+.color-swatch { display: inline-block; width: 20px; height: 20px; border: 1px solid #888; margin-right: 10px; vertical-align: middle; }
+
+/* Scrollbar Styling */
+.scrollable-content { scrollbar-width: auto; scrollbar-color: #aaa #f0f0f0; }
+.scrollable-content::-webkit-scrollbar { width: 14px; }
+.scrollable-content::-webkit-scrollbar-track { background: transparent; }
+.scrollable-content::-webkit-scrollbar-thumb { background-color: #aaa; border-radius: 20px; border: 4px solid #fff; }
+
+/*================================================================
+    5. PROPERTY VIEW (Full Panel Mode)
+================================================================*/
+
+/* NEW: Close button style, bold and centered */
+.close-property-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8em; /* Heavier 'x' */
+    font-weight: 300;
+    line-height: 1;
+    padding: 0 0 2px 0; /* Manual offset for centering */
+    color: #888;
+    background-color: #f0f0f0;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10;
+}
+.close-property-button:hover { background-color: #e0e0e0; color: #000; }
+
+/* When property is active, HIDE pills/tabs */
+#bottom-sheet.property-view-active #filter-pills {
+    display: none;
+}
+/* When property is active, make content fill the panel */
+#bottom-sheet.property-view-active .sheet-content {
+    height: 45vh; /* Mobile: Full 45vh height */
+    padding-top: 15px;
+}
+#bottom-sheet.property-view-active .sheet-header h3 {
+    margin-right: 40px; /* Make room for close button */
+}
+
+
+/*================================================================
+    6. DESKTOP LAYOUT (>= 768px)
+================================================================*/
+@media (min-width: 768px) {
+    
+    /* 1. Offset the Map & UI elements when panel is open */
+    /* This is the key fix. The panel is ALWAYS open on desktop */
+    #map {
+        left: 400px;
+        width: calc(100% - 400px);
+    }
+    #top-ui {
+        left: 415px; /* 400px panel + 15px margin */
+        right: auto;
+        width: 400px;
+    }
+    #location-control {
+        top: 65px; /* Below search */
+        right: auto;
+        left: 410px; /* 400px panel + 10px margin */
+    }
+
+    /* 2. Position the Side Panel */
+    #bottom-sheet {
+        left: 0;
+        top: 0;
+        bottom: auto; /* Unset mobile style */
+        width: 400px;  /* Set fixed width */
+        height: 100vh; /* Full height */
+        
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+        border-right: 1px solid #ccc;
+        box-shadow: 0 0 10px rgba(0,0,0,0.15);
+
+        /* *** FIX: Desktop panel is always "expanded" *** */
+        transform: translateX(0); 
+    }
+
+    /* 3. Hide the mobile handle */
+    .handle {
+        display: none;
+    }
+    
+    /* 4. Re-style Pills as Tabs and move them */
+    #filter-pills {
+        padding: 0;
+        gap: 0;
+        border-bottom: 1px solid #ccc;
+        z-index: auto; /* Reset z-index */
+    }
+    #filter-pills .pill {
+        flex-grow: 1;
+        border-radius: 0;
+        border: none;
+        border-bottom: 3px solid transparent; /* Inactive state */
+        box-shadow: none;
+        background: none;
+        margin: 0;
+        padding: 15px 10px;
+        font-weight: 500;
+        font-size: 0.9em; /* Smaller font to fit */
+        white-space: nowrap; /* Prevents wrapping */
+    }
+    
+    /* 5. New Active Tab Style */
+    #filter-pills .pill.active-pill {
+        background: none;
+        color: #4285F4;
+        border-bottom: 3px solid #4285F4;
+    }
+    
+    /* 6. Adjust content height to fill panel */
+    .sheet-content {
+        height: calc(100vh - 49px); /* Full height minus 49px tab bar */
+        padding-top: 15px;
+        box-sizing: border-box;
+    }
+
+    /* 7. Reposition UI elements */
+    .leaflet-top.leaflet-right {
+        top: 15px; /* Top right corner */
+    }
+
+    /* 8. Property View on Desktop */
+    #bottom-sheet.property-view-active .sheet-content {
+        height: 100vh; /* Full panel height */
+    }
+    .close-property-button {
+        top: 15px;
+    }
+}
