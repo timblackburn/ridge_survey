@@ -1,0 +1,8 @@
+- [ ] Add an asterisk after the year built fields on the #property route.   Add an asterisk in front of the note at the bottom of #property.
+- [ ] on the #survey/decade route, remove the building styles lists under each decade.
+- [ ] on the #property route on desktop, move the address slightly right on both desktop and mobile so the X button isn't on top of it.
+- [ ] Remove the original owner field from the #property route.
+- [ ] On the #property routing, the bullets in the Historic Districts are still too padded.  Decrease the padding / indent of the bullets.
+- [ ] on the /#district/Ridge%20Historic%20District route, I'd like to incorporate a new field from the survey_refactor1_filtered.geojson file called "contributing_ridge_historic_district" into the list of address.  On the far right of the address, put a gold colored ribbon (with a black outline) image if the field is Y.  If null, just show an outline of the ribbon with no gold fill.  Display a hover over that says "Contributing property to the Ridge Historic District" if Y, or "Not contributing property in the Ridge Historic District" if N (ie. Null value).  
+- [ ] On the #survey/architect route, you recently added a first letter filter at the top.  It currently has a light grey background.  Change that to white
+- [ ] On the mobile version of the site, can you make the top part of the bottom pane where the titles are (excluding the back, close buttons, or follow map buttons) all be touchable / clickable to raise and lower the panel position.  Also, would it be possible to make the bottom panel be draggable with your finger to raise and lower it, even to varying hieights on the screen as high as just under the navigation pills?

@@ -1,0 +1,20 @@
+- [ ] In #survey/architect, add some way to easily access architects by the first letter of their last name.
+- [ ] In #survey/decade, add text below each decade with a list of the styles in the buildings data for that decade.
+- [ ] In #survey/decade, make sure the year built field you're using in the data is CHRS_Built_Date (values include "1913", "1910s", "1940+", so you'll need some smart logic to group the CHRS_Built_Date into decade), not YEAR_BUILT.
+- [ ] In #survey/color, implement an order of the colors.  Use this ordering: Red, Orange, Yellow, Yellow/Green, Green, Purple, Blue
+- [ ] In #survey/color, update the color definitions to the following:
+    - Red: #FF0000 - Significant in the broader context of the City of Chicago, the State of Illinois, or the United States of America. 
+    - Orange: #FFA500 - Significant in the context of the surrounding community. 
+    - Yellow: #FFFF00 - Relatively unaltered, pre-1940s, part of a concentration of significant buildings. 
+    - Yellow/Green: #ADFF2F - Pre-1940s whose exteriors were covered with artificial siding, part of a concentration of significant buildings.
+    - Green: #008000 - Pre-1940s whose exteriors have been slightly altered.
+    - Purple: #800080 - Pre-1940s whose exteriors have been extensively altered.
+    - Blue: #0000FF - Constructed after 1940. Too recent to be properly evaluated for significance and were generally not included in the CHRS database.
+- [ ] On the right panel, can you move the close button to the left side of the headline.  This is so the mobile version has the close botton for the panel in the same location as the back button on the (what is left pane on desktop) other panels
+- [ ] - Fix the back button routing within the Building Survey.  On the #survey/color/Blue page, clicking back should go to #survey/color (instead of #survey where it is currently going).  Fix this throughout the Building Survey routings (ie. back from #survey/decade/1870s%20or%20earlier should go to #survey/decade).
+- [ ] The "Follow Map" button is too low.  I don't know what you need to do to raise it a little higher (just a few pixels, probably not more than 10 pixels)
+- [ ] The yellow highlighter circles on the three closest zoom levels are way too small. Triple the size of the circle on the two closest zoom levels and double the size of the circle on third closest zoom level.
+- [ ] On the #property routing, the bullets in the Historic Districts are too padded to the right.  Decrease the padding / indent of the bullets.
+- [ ] I added two columns to the survey_refactor1_filtered.geojson file, building_name and building_name_source.  I'd like you to incorporate the building_name in these locations:
+    - On the #landmarks routing and any other location where you list addresses (such as on /#district/Beverly%2FMorgan%20Park%20Railroad%20Station, #survey/color/Blue, #survey/style/American%20Four-Square, #survey/decade/1870s%20or%20earlier, #survey/architect/John%20Goddard%20Hawle), list the building_name in grey underneath the addresses where building_name is not null.
+    - On the #property routing, list the building_name in grey underneath the address if it's not null.  Include a tooltip to denote the value of the building_name_source.

@@ -663,108 +663,128 @@ function setupEventListeners() {
 /**
  * Sets up touch drag behavior for the mobile bottom sheet
  */
+/**
+ * Sets up touch drag behavior for the mobile bottom sheet
+ */
 function setupMobileDrag() {
     let startY = 0;
     let currentY = 0;
     let isDragging = false;
     let startHeight = 0;
     const sheet = document.getElementById('bottom-sheet');
-    const header = sheet.querySelector('.sheet-header'); // We'll attach to the sheet but check target
 
     // Helper to get current sheet height
     const getSheetHeight = () => sheet.offsetHeight;
 
     sheet.addEventListener('touchstart', (e) => {
-        // Only enable drag if touching the header area or the handle
-        // We want to allow scrolling in the content area, so ignore if target is in scrollable-content
-        if (e.target.closest('.scrollable-content')) return;
+        // If touching scrollable content, only allow drag if we are at the top of scroll
+        // AND the user is trying to drag DOWN (to collapse).
+        // But simpler: just define a "drag zone" at the top.
 
-        // Also allow if it's the handle
-        if (e.target.closest('.handle') || e.target.closest('.sheet-header')) {
+        const touchY = e.touches[0].clientY;
+        const sheetRect = sheet.getBoundingClientRect();
+        const relativeY = touchY - sheetRect.top;
+
+        // Allow drag if:
+        // 1. Touching the handle
+        // 2. Touching the top 60px of the sheet (header area)
+        // 3. NOT touching a button or interactive element
+
+        const isHandle = e.target.closest('.handle');
+        const isHeaderArea = relativeY < 60;
+        const isInteractive = e.target.closest('button') || e.target.closest('a') || e.target.closest('.highlight-toggle');
+
+        if ((isHandle || isHeaderArea) && !isInteractive) {
             startY = e.touches[0].clientY;
             startHeight = getSheetHeight();
             isDragging = true;
             sheet.style.transition = 'none'; // Disable transition during drag
+            // Prevent default to stop scrolling if we are dragging the sheet
+            // e.preventDefault(); // Careful, this might block clicks
         }
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
 
-        currentY = e.touches[0].clientY;
-        const deltaY = startY - currentY; // Up is positive delta (increasing height)
+        // Prevent default to stop page scrolling/bounce
+        // e.preventDefault(); 
 
-        // Calculate new height
-        // Base height is startHeight
-        // If deltaY is positive, we are dragging up -> increase height
-        // If deltaY is negative, we are dragging down -> decrease height
+        currentY = e.touches[0].clientY;
+        const deltaY = startY - currentY; // Up is positive delta
 
         let newHeight = startHeight + deltaY;
 
         // Constraints
-        const minHeight = 60; // Collapsed state
-        const maxHeight = window.innerHeight - 100; // Below nav pills
+        const minHeight = 60; // Collapsed
+        const maxHeight = window.innerHeight - 80; // Below nav pills
 
         if (newHeight < minHeight) newHeight = minHeight;
         if (newHeight > maxHeight) newHeight = maxHeight;
 
         sheet.style.height = `${newHeight}px`;
 
-    }, { passive: true });
+        // Visual feedback: if dragging, remove 'expanded' class logic temporarily
+        // or just let the height override it.
+
+    }, { passive: false }); // passive: false to allow preventDefault if we wanted
 
     document.addEventListener('touchend', (e) => {
         if (!isDragging) return;
         isDragging = false;
-        sheet.style.transition = 'transform 0.3s ease-out, height 0.3s ease-out';
+        sheet.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 
-        // Snap to nearest state
         const currentHeight = getSheetHeight();
-        const threshold = window.innerHeight * 0.25;
+        const windowHeight = window.innerHeight;
 
-        // If we dragged it significantly up, expand it
-        // If we dragged it significantly down, collapse it
-        // Or just snap to 45vh or full height?
+        // Snap logic
+        // Zones:
+        // 1. Collapsed: < 150px
+        // 2. Half (Default): 150px - 60% of screen
+        // 3. Full: > 60% of screen
 
-        // Let's implement a simple toggle-like snap
-        // If height > 50% of screen, snap to near-top (maxHeight)
-        // If height < 20% of screen, snap to collapsed (60px)
-        // Otherwise snap to default (45vh)
+        let targetState = 'half';
 
-        if (currentHeight > window.innerHeight * 0.6) {
-            sheet.style.height = '85vh'; // Near top
-            sheet.classList.add('expanded');
-        } else if (currentHeight < 150) {
-            sheet.style.height = ''; // Reset to CSS default (which might be 45vh but we want collapsed)
-            sheet.classList.remove('expanded');
-            // Force height reset to allow CSS to take over for collapsed state if needed, 
-            // but our CSS uses transform for collapsed state usually.
-            // Wait, the CSS says: height: 45vh; transform: translateY(calc(100% - 60px)); for collapsed.
-            // So we should clear the inline height and let the class dictate.
-            sheet.style.height = '';
+        if (currentHeight < 150) {
+            targetState = 'collapsed';
+        } else if (currentHeight > windowHeight * 0.6) {
+            targetState = 'full';
         } else {
-            // Snap to default 45vh
+            // If we are in between, maybe check direction?
+            // For now, just snap to half.
+            targetState = 'half';
+        }
+
+        // Apply state
+        if (targetState === 'collapsed') {
+            sheet.style.height = ''; // Reset inline height
+            sheet.classList.remove('expanded');
+            // CSS handles the rest (height: 45vh, transform: translateY(calc(100% - 60px)))
+        } else if (targetState === 'full') {
+            sheet.style.height = '85vh';
+            sheet.classList.add('expanded');
+        } else {
+            // Half
             sheet.style.height = '45vh';
             sheet.classList.add('expanded');
         }
     });
 
-    // Header click to toggle (if not dragged)
-    // We need to distinguish click from drag. 
-    // The existing click listener on sheetHandle handles toggle.
-    // We added a click listener to the header in CSS (cursor pointer), but need JS.
-
-    const sheetHeader = document.querySelector('.sheet-header'); // This might be dynamic, so we might need delegation
-    // Actually, sheetContent is static, but its innerHTML changes. 
-    // So we should use delegation on sheetContent or bottomSheet.
-
+    // Click handling for toggle is still useful
     bottomSheet.addEventListener('click', (e) => {
-        // If it was a drag, we probably shouldn't toggle, but click event fires after touchend.
-        // Simple heuristic: if we are in a "drag" sequence, we might want to suppress click?
-        // But here we just want to enable header clicking.
+        // Only toggle if it wasn't a drag (we can't easily detect that here without state, 
+        // but usually click fires after touchend).
+        // If we just finished dragging, we probably don't want to toggle.
+        // But let's keep it simple: if clicked on header and not interactive, toggle.
 
         const header = e.target.closest('.sheet-header');
-        if (header && !e.target.closest('button') && !e.target.closest('.highlight-toggle')) {
-            // Toggle expansion
+        const isInteractive = e.target.closest('button') || e.target.closest('a') || e.target.closest('.highlight-toggle');
+
+        if (header && !isInteractive) {
+            // If we are currently collapsed, expand to half.
+            // If half, expand to full? Or collapse?
+            // Standard behavior: Toggle between collapsed and (last state or default).
+
             toggleBottomSheet();
         }
     });
@@ -1794,7 +1814,27 @@ function buildDistrictDetailsPanel(districtFeature) {
     filteredProperties.sort(propertySort);
 
     let listHtml = filteredProperties.length === 0 ? '<p>No properties from the survey found in this district.</p>' :
-        `<ul class="item-list">${filteredProperties.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('')}</ul>`;
+        `<ul class="item-list">${filteredProperties.map(f => {
+            let ribbonHtml = '';
+            if (districtName === 'Ridge Historic District') {
+                const contrib = f.properties.contributing_ridge_historic_district;
+                let ribbonIcon = 'ribbon-outline.svg';
+                let ribbonTitle = 'Not contributing property in the Ridge Historic District';
+
+                if (contrib === 'Y') {
+                    ribbonIcon = 'ribbon-gold.svg';
+                    ribbonTitle = 'Contributing property to the Ridge Historic District';
+                }
+                ribbonHtml = `<img src="${ribbonIcon}" title="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; flex-shrink: 0;" />`;
+            }
+
+            return `<li data-id="${f.properties.BLDG_ID}">
+                        <a style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <span>${formatListItem(f.properties)}</span>
+                            ${ribbonHtml}
+                        </a>
+                    </li>`;
+        }).join('')}</ul>`;
 
     const followToggleHtml = `<button id="follow-map-toggle" class="pill ${isMapFollowEnabled ? 'active' : ''}">Follow map</button>`;
     sheetContent.innerHTML = `
@@ -2098,27 +2138,6 @@ function updateSheetContent(address, props, imageHtml) {
         <div class="scrollable-content">
             <div class="sheet-header" style="padding-top: 5px; padding-right: 40px;">
                 <h3>${address}</h3>
-                ${(() => {
-            // Ribbon logic
-            const isRidge = props.ridge_historic_district; // Assuming this is the flag for being in the district
-            // The user specifically asked for "contributing_ridge_historic_district" field from geojson
-            // We need to check if that prop exists.
-            const contrib = props.contributing_ridge_historic_district;
-
-            if (window.location.hash.includes('Ridge%20Historic%20District') || (activeDistrictContext === 'Ridge Historic District')) {
-                let ribbonIcon = 'ribbon-outline.svg';
-                let ribbonTitle = 'Not contributing property in the Ridge Historic District';
-                let ribbonFill = 'none';
-
-                if (contrib === 'Y') {
-                    ribbonIcon = 'ribbon-gold.svg';
-                    ribbonTitle = 'Contributing property to the Ridge Historic District';
-                }
-
-                return `<img src="${ribbonIcon}" title="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; vertical-align: middle;" />`;
-            }
-            return '';
-        })()}
                 ${buildingNameHtml}
             </div>
             ${imageHtml}

@@ -252,8 +252,8 @@ html {
     4. PANEL CONTENT (SHARED)
 ================================================================*/
 .sheet-content {
-    height: calc(45vh - 15px);
-    /* Mobile height calc (45vh - handle) */
+    height: calc(100% - 15px);
+    /* Mobile height calc (100% - handle) */
     display: flex;
     flex-direction: column;
     overflow: hidden;
