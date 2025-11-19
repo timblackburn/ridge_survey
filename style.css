@@ -1,13 +1,20 @@
 /*================================================================
     1. GLOBAL & FONT FIXES
 ================================================================*/
-body, html {
+body,
+html {
     margin: 0;
     padding: 0;
     height: 100%;
     width: 100%;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     overflow: hidden;
+}
+
+:root {
+    /* Widen left panel to reduce line breaks. Right panel overlays map, so map always fills available space. */
+    --left-panel-width: clamp(380px, 26vw, 480px);
+    --right-panel-width: clamp(320px, 24vw, 480px);
 }
 
 #app-container {
@@ -27,7 +34,8 @@ body, html {
     height: 100%;
     background-color: #e0e0e0;
     z-index: 1;
-    transition: left 0.3s ease, width 0.3s ease; /* For desktop panel */
+    transition: left 0.3s ease, width 0.3s ease;
+    /* For desktop panel */
 }
 
 #top-ui {
@@ -39,67 +47,113 @@ body, html {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    transition: left 0.3s ease; /* For desktop panel */
+    transition: left 0.3s ease;
+    /* For desktop panel */
+}
+
+@media (min-width: 768px) {
+    #top-ui {
+        max-width: calc(100vw - var(--right-panel-width) - 30px);
+    }
+
+    #search-bar {
+        max-width: 420px;
+    }
 }
 
 #search-bar {
-    position: relative; /* For dropdown */
+    position: relative;
+    /* For dropdown */
     display: flex;
     align-items: center;
     background-color: #fff;
     padding: 10px 15px;
     border-radius: 50px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    z-index: 2; /* *** FIX: Higher than pills *** */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    z-index: 2;
+    /* *** FIX: Higher than pills *** */
 }
-#search-bar .search-icon { margin-right: 10px; font-size: 1.2em; }
-#search-bar input { border: none; outline: none; font-size: 1em; width: 100%; }
+
+#search-bar .search-icon {
+    margin-right: 10px;
+    font-size: 1.2em;
+}
+
+#search-bar input {
+    border: none;
+    outline: none;
+    font-size: 1em;
+    width: 100%;
+}
 
 /* NEW: Search results dropdown */
 #search-results-dropdown {
-    display: none; /* Hidden by default */
+    display: none;
+    /* Hidden by default */
     position: absolute;
-    top: calc(100% + 5px); /* Position below search bar */
+    top: calc(100% + 5px);
+    /* Position below search bar */
     left: 0;
     right: 0;
     background: #fff;
     border: 1px solid #ccc;
     border-radius: 16px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     max-height: 200px;
     overflow-y: auto;
-    z-index: 1000; /* Above all other UI */
+    z-index: 1000;
+    /* Above all other UI */
 }
+
 #search-results-dropdown.active {
     display: block;
 }
+
 #search-results-dropdown ul {
     list-style: none;
     padding: 0;
     margin: 0;
 }
+
 #search-results-dropdown li {
     padding: 10px 20px;
     cursor: pointer;
     border-bottom: 1px solid #eee;
 }
+
 #search-results-dropdown li:last-child {
     border-bottom: none;
 }
+
 #search-results-dropdown li:hover {
     background: #f5f5f5;
 }
 
 
-#filter-pills { 
-    display: flex; 
-    flex-wrap: wrap; 
-    gap: 8px; 
-    position: relative; /* For z-index */
-    z-index: 1; /* *** FIX: Lower than search *** */
+#filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
+    /* For z-index */
+    z-index: 1;
+    /* *** FIX: Lower than search *** */
 }
-.pill { background-color: #fff; border: 1px solid #dcdcdc; border-radius: 20px; padding: 8px 16px; font-size: 0.9em; font-weight: 500; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.pill:hover { background-color: #f5f5f5; }
+
+.pill {
+    background-color: #fff;
+    border: 1px solid #dcdcdc;
+    border-radius: 20px;
+    padding: 7px 14px;
+    font-size: 0.85em;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.pill:hover {
+    background-color: #f5f5f5;
+}
 
 /* Active Pill Style (Mobile) */
 #filter-pills .pill.active-pill {
@@ -111,20 +165,53 @@ body, html {
 /* Location Button */
 #location-control {
     position: absolute;
-    top: 135px; /* Below pills on mobile */
+    top: 135px;
+    /* Below pills on mobile */
     right: 10px;
     z-index: 10;
-    transition: left 0.3s ease; /* For desktop panel */
+    transition: left 0.3s ease;
+    /* For desktop panel */
 }
-#location-button { width: 30px; height: 30px; line-height: 30px; text-align: center; font-size: 1.4em; text-decoration: none; color: #333; }
-#location-button.state-off::before { content: '⌖'; }
-#location-button.state-following::before { content: '●'; color: #4285F4; }
-#location-button.state-error::before { content: '✖'; color: #E63946; }
+
+#location-button {
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    font-size: 1.4em;
+    text-decoration: none;
+    color: #333;
+}
+
+#location-button.state-off::before {
+    content: '⌖';
+}
+
+#location-button.state-following::before {
+    content: '●';
+    color: #4285F4;
+}
+
+#location-button.state-error::before {
+    content: '✖';
+    color: #E63946;
+}
 
 /* Leaflet Zoom Control */
 .leaflet-top.leaflet-right {
-    top: 175px; /* Below location on mobile */
+    top: 175px;
+    /* Below location on mobile */
     z-index: 5;
+}
+
+/* Move attribution to bottom-left to avoid blocking right pane */
+.leaflet-bottom.leaflet-right {
+    left: 0;
+    right: auto;
+}
+
+.leaflet-control-attribution {
+    margin-left: 10px;
 }
 
 /*================================================================
@@ -139,14 +226,16 @@ body, html {
     background-color: #fff;
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
-    height: 45vh; 
-    transform: translateY(calc(100% - 60px)); /* Minimized state */
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+    height: 45vh;
+    transform: translateY(calc(100% - 60px));
+    /* Minimized state */
     transition: transform 0.3s ease-out, height 0.3s ease-out;
 }
 
 #bottom-sheet.expanded {
-    transform: translateY(0); /* Expanded state */
+    transform: translateY(0);
+    /* Expanded state */
 }
 
 .handle {
@@ -162,11 +251,13 @@ body, html {
     4. PANEL CONTENT (SHARED)
 ================================================================*/
 .sheet-content {
-    height: calc(45vh - 15px); /* Mobile height calc (45vh - handle) */
+    height: calc(45vh - 15px);
+    /* Mobile height calc (45vh - handle) */
     display: flex;
     flex-direction: column;
-    overflow: hidden; 
-    position: relative; /* For close button */
+    overflow: hidden;
+    position: relative;
+    /* For close button */
 }
 
 .sheet-header {
@@ -176,13 +267,14 @@ body, html {
     justify-content: space-between;
     align-items: center;
 }
+
 .sheet-header h3 {
     margin-top: 0;
     margin-bottom: 1rem;
     display: flex;
     align-items: center;
-    flex-grow: 1; 
-    min-width: 0; 
+    flex-grow: 1;
+    min-width: 0;
 }
 
 #follow-map-toggle {
@@ -191,6 +283,7 @@ body, html {
     font-size: 0.8em;
     padding: 6px 12px;
 }
+
 #follow-map-toggle.active {
     background-color: #4285F4;
     color: white;
@@ -205,23 +298,292 @@ body, html {
 }
 
 /* All other shared styles */
-.back-button { background: #eee; border: none; font-size: 1.2em; font-weight: bold; border-radius: 50%; width: 30px; height: 30px; margin-right: 10px; cursor: pointer; line-height: 30px; padding: 0; }
-.back-button:hover { background: #ddd; }
-.item-list { list-style: none; padding: 0; margin: 0; }
-.item-list li { padding: 12px 10px; border-bottom: 1px solid #eee; font-size: 1.1em; cursor: pointer; transition: background-color 0.2s; }
-.item-list li:hover { background-color: #f5f5f5; }
-.item-list a { color: inherit; text-decoration: none; display: block; }
-.prop-grid { display: grid; grid-template-columns: 1fr; }
-.prop-grid div { font-size: 0.95em; }
-.prop-grid div strong { display: block; color: #555; font-size: 0.9em; margin-bottom: 2px; }
-.prop-note { font-size: 0.8em; color: #777; border-top: 1px solid #eee; padding-top: 10px; margin-top: 15px; }
-.color-swatch { display: inline-block; width: 20px; height: 20px; border: 1px solid #888; margin-right: 10px; vertical-align: middle; }
+.back-button {
+    background: #eee;
+    border: none;
+    font-size: 1.2em;
+    font-weight: bold;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    margin-right: 10px;
+    cursor: pointer;
+    line-height: 30px;
+    padding: 0;
+}
 
-/* Scrollbar Styling */
-.scrollable-content { scrollbar-width: auto; scrollbar-color: #aaa #f0f0f0; }
-.scrollable-content::-webkit-scrollbar { width: 14px; }
-.scrollable-content::-webkit-scrollbar-track { background: transparent; }
-.scrollable-content::-webkit-scrollbar-thumb { background-color: #aaa; border-radius: 20px; border: 4px solid #fff; }
+.back-button:hover {
+    background: #ddd;
+}
+
+.item-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.item-list li {
+    padding: 10px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 1.0em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.item-list li:hover {
+    background-color: #f5f5f5;
+}
+
+.item-list a {
+    color: inherit;
+    text-decoration: none;
+    display: block;
+}
+
+.filter-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 10px;
+    gap: 12px;
+}
+
+.filter-item-text {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.highlight-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid #dcdcdc;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    padding: 0;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    flex-shrink: 0;
+}
+
+.highlight-toggle:hover {
+    border-color: #bbb;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.highlight-toggle.highlight-active {
+    border-color: #f5a623;
+    box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.35);
+}
+
+.highlight-toggle {
+    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.highlight-toggle .highlight-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+}
+
+.highlight-toggle img.highlight-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+.prop-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+}
+
+.prop-grid div {
+    font-size: 0.95em;
+}
+
+.prop-grid div strong {
+    display: block;
+    color: #555;
+    font-size: 0.9em;
+    margin-bottom: 2px;
+}
+
+.prop-note {
+    font-size: 0.8em;
+    color: #777;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+    margin-top: 15px;
+}
+
+.color-swatch {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 1px solid #888;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+/* Property image styling */
+.property-image {
+    background-color: transparent;
+    /* Transparent to show scroll hints */
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid #eaeaea;
+}
+
+.property-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+}
+
+/* Landmark glow: blurred yellow highlight for Individual Landmarks panel */
+.landmark-glow {
+    filter: blur(6px);
+    /* ensure the blurred fill shows but doesn't add a stroke */
+    stroke: none !important;
+}
+
+/* Property card improvements */
+.property-card {
+    margin: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    border: none;
+    font-size: 0.92rem;
+}
+
+.property-section {
+    background-color: transparent;
+    /* Transparent to show scroll hints */
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid #eaeaea;
+}
+
+.property-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 1.05em;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 6px;
+    color: #2c3e50;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.district-list {
+    list-style: disc;
+    padding-left: 20px;
+    margin: 6px 0;
+}
+
+.district-none {
+    color: #666;
+    font-style: italic;
+    margin: 6px 0;
+}
+
+.property-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.meta-row {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+}
+
+.meta-key {
+    color: #666;
+    min-width: 105px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+.meta-val {
+    color: #222;
+}
+
+.not-in-survey {
+    color: #b03;
+    font-weight: 700;
+}
+
+.prop-note {
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 12px;
+}
+
+/* Reduce outer padding specifically for the right-sheet pane */
+#right-sheet .scrollable-content {
+    padding: 0 12px 20px 12px;
+}
+
+/* Scrollbar Styling & Scroll Hints */
+/* Scrollbar Styling & Scroll Hints */
+.scrollable-content {
+    scrollbar-width: auto;
+    scrollbar-color: #aaa #f0f0f0;
+
+    /* Ensure it fills the flex container and handles scrolling */
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    /* Important for nested flex scrolling */
+
+    /* Scroll hints: pure CSS trick */
+    background:
+        /* Top Cover (White) - moves with scroll */
+        linear-gradient(#ffffff 30%, rgba(255, 255, 255, 0)) 0 0,
+        /* Bottom Cover (White) - moves with scroll */
+        linear-gradient(rgba(255, 255, 255, 0), #ffffff 70%) 0 100%,
+        /* Top Shadow (Gray) - fixed */
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0)) 0 0,
+        /* Bottom Shadow (Gray) - fixed */
+        linear-gradient(to top, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0)) 0 100%;
+    background-repeat: no-repeat;
+    background-color: #ffffff;
+    background-attachment: local, local, scroll, scroll;
+    background-size: 100% 40px, 100% 40px, 100% 14px, 100% 14px;
+}
+
+.scrollable-content::-webkit-scrollbar {
+    width: 14px;
+}
+
+.scrollable-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb {
+    background-color: #aaa;
+    border-radius: 20px;
+    border: 4px solid #fff;
+}
 
 /*================================================================
     5. PROPERTY VIEW (Full Panel Mode)
@@ -237,10 +599,12 @@ body, html {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.8em; /* Heavier 'x' */
+    font-size: 1.8em;
+    /* Heavier 'x' */
     font-weight: 300;
     line-height: 1;
-    padding: 0 0 2px 0; /* Manual offset for centering */
+    padding: 0 0 2px 0;
+    /* Manual offset for centering */
     color: #888;
     background-color: #f0f0f0;
     border: none;
@@ -248,19 +612,23 @@ body, html {
     cursor: pointer;
     z-index: 10;
 }
-.close-property-button:hover { background-color: #e0e0e0; color: #000; }
 
-/* When property is active, HIDE pills/tabs */
-#bottom-sheet.property-view-active #filter-pills {
-    display: none;
+.close-property-button:hover {
+    background-color: #e0e0e0;
+    color: #000;
 }
+
+/* NOTE: Do not hide the left panel when a property view is active. */
 /* When property is active, make content fill the panel */
 #bottom-sheet.property-view-active .sheet-content {
-    height: 45vh; /* Mobile: Full 45vh height */
+    height: 45vh;
+    /* Mobile: Full 45vh height */
     padding-top: 15px;
 }
+
 #bottom-sheet.property-view-active .sheet-header h3 {
-    margin-right: 40px; /* Make room for close button */
+    margin-right: 40px;
+    /* Make room for close button */
 }
 
 
@@ -268,91 +636,304 @@ body, html {
     6. DESKTOP LAYOUT (>= 768px)
 ================================================================*/
 @media (min-width: 768px) {
-    
+
     /* 1. Offset the Map & UI elements when panel is open */
     /* This is the key fix. The panel is ALWAYS open on desktop */
+    /* Map occupies the space between the left panel and the right edge by default.
+       Only reserve space for the right panel when it is visible to avoid a blank
+       area on initial load. */
+    /* Map sits between left panel and right edge by default. On desktop,
+       left panel width is variable via --left-panel-width. When the right
+       panel is opened we add `right-open` to `#app-container` to shrink the map.
+    */
     #map {
-        left: 400px;
-        width: calc(100% - 400px);
+        left: var(--left-panel-width);
+        right: 0;
+        width: calc(100% - var(--left-panel-width));
     }
+
     #top-ui {
-        left: 415px; /* 400px panel + 15px margin */
-        right: auto;
-        width: 400px;
+        left: calc(var(--left-panel-width) + 15px);
+        /* left panel + margin */
+        right: 20px;
+        width: auto;
     }
+
+    /* Ensure the top UI (search/pills) doesn't extend under the right
+       property panel when it's open. `panel-open` is added to
+       `#app-container` by JS when the right-sheet is shown on desktop. */
+    #app-container.panel-open #top-ui {
+        /* Reserve space on the right equal to the right panel width */
+        right: calc(var(--right-panel-width) + 20px);
+        max-width: calc(100vw - var(--left-panel-width) - var(--right-panel-width) - 40px);
+    }
+
     #location-control {
-        top: 65px; /* Below search */
+        top: 65px;
+        /* Below search */
         right: auto;
-        left: 410px; /* 400px panel + 10px margin */
+        left: 410px;
+        /* 400px left panel + 10px margin */
     }
 
     /* 2. Position the Side Panel */
     #bottom-sheet {
         left: 0;
         top: 0;
-        bottom: auto; /* Unset mobile style */
-        width: 400px;  /* Set fixed width */
-        height: 100vh; /* Full height */
-        
+        bottom: auto;
+        /* Unset mobile style */
+        width: var(--left-panel-width);
+        /* Set fixed width from variable */
+        height: 100vh;
+        /* Full height */
+
         border-top-left-radius: 0;
         border-top-right-radius: 0;
         border-right: 1px solid #ccc;
-        box-shadow: 0 0 10px rgba(0,0,0,0.15);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
 
         /* *** FIX: Desktop panel is always "expanded" *** */
-        transform: translateX(0); 
+        transform: translateX(0);
+    }
+
+    /* 3. Right-side property panel (desktop only) */
+    #right-sheet {
+        position: fixed;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: var(--right-panel-width);
+        height: auto;
+        z-index: 2000;
+        /* Ensure it's above Leaflet controls */
+        background-color: #fff;
+        border-left: 1px solid #ccc;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        display: none;
+    }
+
+    #right-sheet.property-view-active {
+        display: block;
+    }
+
+    #right-sheet .sheet-content-right {
+        height: 100%;
+        padding: 0;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        background-color: #ffffff;
     }
 
     /* 3. Hide the mobile handle */
     .handle {
         display: none;
     }
-    
+
     /* 4. Re-style Pills as Tabs and move them */
     #filter-pills {
         padding: 0;
         gap: 0;
         border-bottom: 1px solid #ccc;
-        z-index: auto; /* Reset z-index */
+        z-index: auto;
+        /* Reset z-index */
     }
+
     #filter-pills .pill {
         flex-grow: 1;
         border-radius: 0;
         border: none;
-        border-bottom: 3px solid transparent; /* Inactive state */
+        border-bottom: 3px solid transparent;
+        /* Inactive state */
         box-shadow: none;
         background: none;
         margin: 0;
         padding: 15px 10px;
         font-weight: 500;
-        font-size: 0.9em; /* Smaller font to fit */
-        white-space: nowrap; /* Prevents wrapping */
+        font-size: 0.9em;
+        /* Smaller font to fit */
+        white-space: nowrap;
+        /* Prevents wrapping */
     }
-    
+
     /* 5. New Active Tab Style */
     #filter-pills .pill.active-pill {
         background: none;
         color: #4285F4;
         border-bottom: 3px solid #4285F4;
     }
-    
+
     /* 6. Adjust content height to fill panel */
     .sheet-content {
-        height: calc(100vh - 49px); /* Full height minus 49px tab bar */
+        height: calc(100vh - 49px);
+        /* Full height minus 49px tab bar */
         padding-top: 15px;
         box-sizing: border-box;
     }
 
     /* 7. Reposition UI elements */
     .leaflet-top.leaflet-right {
-        top: 15px; /* Top right corner */
+        top: 15px;
+        /* Top right corner */
     }
 
     /* 8. Property View on Desktop */
     #bottom-sheet.property-view-active .sheet-content {
-        height: 100vh; /* Full panel height */
+        height: 100vh;
+        /* Full panel height */
     }
+
     .close-property-button {
         top: 15px;
     }
+}
+
+/*================================================================
+    7. MODAL SYSTEM
+================================================================*/
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 3000;
+    /* Above right pane (2000) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background-color: #fff;
+    width: 90%;
+    max-width: 600px;
+    max-height: 85vh;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: scale(0.95);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-overlay.active .modal-content {
+    transform: scale(1);
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #fff;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #2c3e50;
+    font-weight: 700;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #888;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    border-radius: 50%;
+    transition: background-color 0.2s, color 0.2s;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    line-height: 1.6;
+    color: #444;
+    /* Scroll hints */
+    background:
+        /* Shadow covers */
+        linear-gradient(white 30%, rgba(255, 255, 255, 0)),
+        linear-gradient(rgba(255, 255, 255, 0), white 70%) 0 100%,
+        /* Shadows */
+        radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, .5), rgba(0, 0, 0, 0)),
+        radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, .5), rgba(0, 0, 0, 0)) 0 100%;
+    background-repeat: no-repeat;
+    background-color: white;
+    background-size: 100% 40px, 100% 40px, 100% 14px, 100% 14px;
+    background-attachment: local, local, scroll, scroll;
+}
+
+.modal-body h4 {
+    margin-top: 0;
+    color: #2c3e50;
+    margin-bottom: 12px;
+}
+
+.modal-body p {
+    margin-bottom: 16px;
+}
+
+.modal-body ul {
+    margin-bottom: 16px;
+    padding-left: 20px;
+}
+
+.modal-body li {
+    margin-bottom: 8px;
+}
+
+/* Info button in property list */
+.info-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--primary);
+    padding: 4px 8px;
+    margin-left: 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background-color 0.2s;
+}
+
+.info-btn:hover {
+    background-color: rgba(79, 70, 229, 0.1);
+    /* Primary color with opacity */
+}
+
+.info-icon {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
 }

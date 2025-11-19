@@ -1,22 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historic Survey Map (Leaflet)</title>
+    <title>Ridge historic districts and </title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
-    
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-     crossorigin=""></script>
-    
-    <script src="https://npmcdn.com/@turf/turf/turf.min.js"></script>
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Turf: try a pinned CDN first, fall back to a local copy if the CDN is unavailable -->
+    <script>
+        (function () {
+            function tryJsDelivr() {
+                var s2 = document.createElement('script');
+                s2.src = 'https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js';
+                s2.crossOrigin = 'anonymous';
+                s2.onload = function () { console.info('Loaded turf from CDN (jsDelivr@6.5.0)'); };
+                s2.onerror = function () { console.warn('jsDelivr failed, no more fallbacks'); };
+                document.head.appendChild(s2);
+            }
+
+            function tryUnpkg() {
+                var s1 = document.createElement('script');
+                s1.src = 'https://unpkg.com/@turf/turf@6.5.0/turf.min.js';
+                s1.crossOrigin = 'anonymous';
+                s1.onload = function () { console.info('Loaded turf from CDN (unpkg@6.5.0)'); };
+                s1.onerror = function () { console.warn('unpkg failed, trying jsDelivr'); tryJsDelivr(); };
+                document.head.appendChild(s1);
+            }
+
+            function loadLocalTurf() {
+                var sLocal = document.createElement('script');
+                sLocal.src = 'vendor/turf.min.js';
+                sLocal.onload = function () { console.info('Loaded local turf (vendor/turf.min.js)'); };
+                sLocal.onerror = function () { console.warn('Local turf not found, falling back to unpkg'); tryUnpkg(); };
+                document.head.appendChild(sLocal);
+            }
+
+            // Start by trying a local copy so the app can work offline and avoid
+            // waiting on remote CDNs. If local isn't present, fall back to CDNs.
+            loadLocalTurf();
+        })();
+    </script>
 
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <div id="app-container">
@@ -30,7 +63,7 @@
         <div id="top-ui">
             <div id="search-bar">
                 <span class="search-icon">🔍</span>
-                <input type="text" placeholder="Search by address or street..." autocomplete="off">
+                <input type="text" placeholder="Search address..." autocomplete="off">
                 <div id="search-results-dropdown"></div>
             </div>
             <div id="filter-pills">
@@ -40,13 +73,36 @@
             </div>
         </div>
 
-        <div id="bottom-sheet"> <div class="handle"></div> <div class="sheet-content">
-                </div>
+        <div id="bottom-sheet">
+            <div class="handle"></div>
+            <div class="sheet-content">
+            </div>
+        </div>
+
+        <!-- Right-side panel for property / building details (desktop only) -->
+        <div id="right-sheet">
+            <div class="sheet-content-right"></div>
         </div>
 
     </div>
 
-    <script src="app.js"></script>
+    <!-- Modal System -->
+    <div id="info-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Modal Title</h3>
+                <button class="modal-close" id="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Content will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="app.js?v=13"></script>
 
 </body>
+
 </html>
