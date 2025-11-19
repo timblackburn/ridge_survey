@@ -658,6 +658,84 @@ function setupEventListeners() {
 
     // Setup mobile drag interactions
     setupMobileDrag();
+
+    // Setup custom tooltip
+    setupCustomTooltip();
+}
+
+/**
+ * Sets up custom tooltip behavior
+ */
+function setupCustomTooltip() {
+    let tooltip = document.getElementById('custom-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'custom-tooltip';
+        document.body.appendChild(tooltip);
+    }
+
+    const show = (text, e) => {
+        tooltip.textContent = text;
+        tooltip.classList.add('visible');
+        move(e);
+    };
+
+    const hide = () => {
+        tooltip.classList.remove('visible');
+    };
+
+    const move = (e) => {
+        const x = e.clientX;
+        const y = e.clientY;
+        const rect = tooltip.getBoundingClientRect();
+
+        // Position logic to keep on screen
+        let top = y + 15;
+        let left = x + 15;
+
+        if (left + rect.width > window.innerWidth) {
+            left = x - rect.width - 10;
+        }
+        if (top + rect.height > window.innerHeight) {
+            top = y - rect.height - 10;
+        }
+
+        tooltip.style.top = `${top}px`;
+        tooltip.style.left = `${left}px`;
+    };
+
+    // Delegation
+    document.addEventListener('mouseover', (e) => {
+        const target = e.target.closest('[data-tooltip]');
+        if (target) {
+            show(target.getAttribute('data-tooltip'), e);
+        }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        const target = e.target.closest('[data-tooltip]');
+        if (target) {
+            hide();
+        }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (tooltip.classList.contains('visible')) {
+            move(e);
+        }
+    });
+
+    // Mobile tap support
+    document.addEventListener('click', (e) => {
+        const target = e.target.closest('[data-tooltip]');
+        if (target) {
+            // Toggle or show?
+            // On mobile, click might be the only way.
+            // We can show it for a few seconds then hide.
+            show(target.getAttribute('data-tooltip'), e);
+            setTimeout(hide, 3000);
+        }
+    });
 }
 
 /**
@@ -1834,7 +1912,7 @@ function buildDistrictDetailsPanel(districtFeature) {
                     ribbonIcon = 'ribbon-gold.svg';
                     ribbonTitle = 'Contributing property to the Ridge Historic District';
                 }
-                ribbonHtml = `<img src="${ribbonIcon}" title="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; flex-shrink: 0; display: block;" />`;
+                ribbonHtml = `<img src="${ribbonIcon}" data-tooltip="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; flex-shrink: 0; display: block;" />`;
             }
 
             return `<li data-id="${f.properties.BLDG_ID}">
@@ -2073,13 +2151,25 @@ function updateSheetContent(address, props, imageHtml) {
     const infoIcon = `<svg class="info-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`;
 
     const districtsHtml = districts.length > 0 ?
-        `<ul class="district-list">${districts.map(d => `
-            <li style="display: flex; align-items: flex-start; justify-content: space-between;">
-                <span style="margin-right: 10px;">&bull; ${d}</span>
+        `<ul class="district-list">${districts.map(d => {
+            let ribbonHtml = '';
+            if (d === 'Ridge Historic District') {
+                // Check if contributing
+                const contrib = val(props.contributing_ridge_historic_district);
+                if (contrib === 'Y') {
+                    ribbonHtml = `<img src="ribbon-gold.svg" data-tooltip="Contributing property to the Ridge Historic District" style="height: 18px; width: 18px; margin-left: 8px; vertical-align: middle; display: inline-block;" />`;
+                } else {
+                    ribbonHtml = `<img src="ribbon-outline.svg" data-tooltip="Non-contributing property in the Ridge Historic District" style="height: 18px; width: 18px; margin-left: 8px; vertical-align: middle; display: inline-block;" />`;
+                }
+            }
+            return `
+            <li style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="display: flex; align-items: center;">&bull; ${d}${ribbonHtml}</span>
                 <button class="info-btn" data-district="${d}" style="flex-shrink: 0;">
                     ${infoIcon} Info
                 </button>
-            </li>`).join('')}</ul>`
+            </li>`;
+        }).join('')}</ul>`
         : '<div class="district-none">None</div>';
 
     // Helper for Color Code
@@ -2113,7 +2203,7 @@ function updateSheetContent(address, props, imageHtml) {
             const s = val(props['CHRS_Building Style']);
             if (!s) return 'N/A';
             if (window.buildingStyles && window.buildingStyles[s]) {
-                return `<a href="#" class="style-link" data-style="${s}" style="color: #333; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: #999; cursor: help;">${s}</a>`;
+                return `<a href="#" class="style-link" data-style="${s}" style="color: #333; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: #999; cursor: pointer;">${s}</a>`;
             }
             return `<a href="#survey/style/${encodeURIComponent(s)}" style="color: inherit; text-decoration: none; border-bottom: 1px dotted #999;">${s}</a>`;
         })()}</span></div>
@@ -2121,7 +2211,7 @@ function updateSheetContent(address, props, imageHtml) {
             <div class="meta-row">
                 <span class="meta-key">Color code:</span>
                 <span class="meta-val">
-                    ${colorVal ? `<button class="info-btn" data-district="CHRS_Color" style="margin: 0; padding: 0; color: ${colorHex}; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: #999; cursor: help; font-weight: bold; background-color: transparent !important;">${colorVal}</button>` : 'N/A'}
+                    ${colorVal ? `<button class="info-btn" data-district="CHRS_Color" style="margin: 0; padding: 0; color: ${colorHex}; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: #999; cursor: pointer; font-weight: bold; background-color: transparent !important;">${colorVal}</button>` : 'N/A'}
                 </span>
             </div>
         </div>
@@ -2131,7 +2221,7 @@ function updateSheetContent(address, props, imageHtml) {
     const cityHtml = `
         <div class="property-meta">
             <div class="meta-row"><span class="meta-key">PIN:</span><span class="meta-val">${val(props.PIN) || 'N/A'}</span></div>
-            <div class="meta-row"><span class="meta-key">Year built:</span><span class="meta-val">${val(props.YEAR_BUILT) || 'N/A'}</span></div>
+            <div class="meta-row"><span class="meta-key">Year built:</span><span class="meta-val">${val(props.YEAR_BUILT) || 'N/A'}*</span></div>
         </div>
     `;
 
@@ -2139,16 +2229,18 @@ function updateSheetContent(address, props, imageHtml) {
     const buildingName = val(props.building_name);
     const buildingNameSource = val(props.building_name_source);
     const buildingNameHtml = buildingName ?
-        `<div style="color: #888; font-size: 0.9em; margin-top: 4px; font-weight: 400;" title="${buildingNameSource || 'Source unknown'}">${buildingName}</div>`
+        `<div style="color: #888; font-size: 0.9em; font-weight: 400;" title="${buildingNameSource || 'Source unknown'}">${buildingName}</div>`
         : '';
 
     targetContent.innerHTML = `
-        <button class="close-property-button">&times;</button>
-        <div class="scrollable-content">
-            <div class="sheet-header" style="padding-top: 5px; padding-right: 40px;">
-                <h3>${address}</h3>
+        <div class="sheet-header" style="padding: 15px 20px; display: flex; align-items: flex-start;">
+            <button class="close-property-button" style="position: static; margin-right: 15px; flex-shrink: 0;">&times;</button>
+            <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
+                <h3 style="margin: 0; line-height: 1.2;">${address}</h3>
                 ${buildingNameHtml}
             </div>
+        </div>
+        <div class="scrollable-content">
             ${imageHtml}
             <div class="property-card">
                 <div class="property-section">

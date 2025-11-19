@@ -436,6 +436,9 @@ html {
     border: 1px solid #888;
     margin-right: 10px;
     vertical-align: middle;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 2px;
 }
 
 /* Property image styling */
@@ -496,8 +499,8 @@ html {
 }
 
 .district-list {
-    list-style: disc;
-    padding-left: 18px;
+    list-style: none;
+    padding-left: 0;
     margin: 6px 0;
 }
 
@@ -975,5 +978,36 @@ html {
 @media (min-width: 768px) {
     .desktop-footer {
         display: block;
+    }
+}
+
+/* Custom Tooltip */
+#custom-tooltip {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    pointer-events: none;
+    z-index: 9999;
+    max-width: 250px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transition: opacity 0.1s;
+    display: none;
+    /* Hidden by default */
+}
+
+#custom-tooltip.visible {
+    opacity: 1;
+    display: block;
+}
+
+/* Mobile-specific pill sizing */
+@media (max-width: 767px) {
+    .pill {
+        padding: 10px 18px;
+        font-size: 0.95em;
     }
 }
