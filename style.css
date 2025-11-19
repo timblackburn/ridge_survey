@@ -965,3 +965,15 @@ html {
         display: none !important;
     }
 }
+
+/* Mobile-first: hide desktop footer by default */
+.desktop-footer {
+    display: none;
+}
+
+/* Show on desktop */
+@media (min-width: 768px) {
+    .desktop-footer {
+        display: block;
+    }
+}

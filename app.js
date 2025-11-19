@@ -2470,7 +2470,7 @@ function showDefaultPanel() {
                 Search for your address above to see if your building has a landmark designation or is included in the 1995 Chicago Historic Resources Survey (CHRS).
             </div>
             <p style="font-size: 0.9em; color: #666; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">
-                <em>Created by Tim Blackburn. Brought to you by the Ridge Historical Society and Beverly Area Planning Association. (v0.3)</em>
+                <em>Created by Tim Blackburn. Brought to you by the Ridge Historical Society and Beverly Area Planning Association. (v0.4)</em>
             </p>
         </div>
     `;
