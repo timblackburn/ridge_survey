@@ -958,3 +958,10 @@ html {
     height: 16px;
     fill: currentColor;
 }
+
+/* Hide desktop footer on mobile */
+@media (max-width: 767px) {
+    .desktop-footer {
+        display: none !important;
+    }
+}

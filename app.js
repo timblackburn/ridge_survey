@@ -711,13 +711,22 @@ function setupMobileDrag() {
         // e.preventDefault(); 
 
         currentY = e.touches[0].clientY;
-        const deltaY = startY - currentY; // Up is positive delta
+        let deltaY = startY - currentY; // Up is positive delta
+
+        // Increase sensitivity for dragging down (negative delta)
+        // This makes it feel "lighter" to pull down
+        if (deltaY < 0) {
+            deltaY *= 1.5;
+        }
 
         let newHeight = startHeight + deltaY;
 
         // Constraints
         const minHeight = 60; // Collapsed
-        const maxHeight = window.innerHeight - 80; // Below nav pills
+        // Max height should leave room for top pills (approx 160px from top)
+        // Pills are in #top-ui which is at top: 20px.
+        // Let's say we want to stop 160px from top.
+        const maxHeight = window.innerHeight - 160;
 
         if (newHeight < minHeight) newHeight = minHeight;
         if (newHeight > maxHeight) newHeight = maxHeight;
@@ -745,13 +754,12 @@ function setupMobileDrag() {
 
         let targetState = 'half';
 
-        if (currentHeight < 150) {
+        // Adjust thresholds for easier collapsing
+        if (currentHeight < 200) { // Increased from 150 to make it easier to collapse
             targetState = 'collapsed';
         } else if (currentHeight > windowHeight * 0.6) {
             targetState = 'full';
         } else {
-            // If we are in between, maybe check direction?
-            // For now, just snap to half.
             targetState = 'half';
         }
 
@@ -759,9 +767,10 @@ function setupMobileDrag() {
         if (targetState === 'collapsed') {
             sheet.style.height = ''; // Reset inline height
             sheet.classList.remove('expanded');
-            // CSS handles the rest (height: 45vh, transform: translateY(calc(100% - 60px)))
         } else if (targetState === 'full') {
-            sheet.style.height = '85vh';
+            // Use calculated max height for full state
+            const maxHeight = window.innerHeight - 160;
+            sheet.style.height = `${maxHeight}px`;
             sheet.classList.add('expanded');
         } else {
             // Half
