@@ -149,6 +149,7 @@ html {
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 8px;
 }
 
 .pill:hover {
@@ -266,6 +267,8 @@ html {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    cursor: pointer;
+    /* Make header touchable/clickable */
 }
 
 .sheet-header h3 {
@@ -494,7 +497,7 @@ html {
 
 .district-list {
     list-style: disc;
-    padding-left: 20px;
+    padding-left: 18px;
     margin: 6px 0;
 }
 
@@ -593,7 +596,7 @@ html {
 .close-property-button {
     position: absolute;
     top: 10px;
-    right: 15px;
+    left: 15px;
     width: 32px;
     height: 32px;
     display: flex;
@@ -631,6 +634,15 @@ html {
     /* Make room for close button */
 }
 
+
+/* Default (Mobile) Footer Styles */
+.mobile-footer {
+    display: block;
+}
+
+.desktop-footer {
+    display: none;
+}
 
 /*================================================================
     6. DESKTOP LAYOUT (>= 768px)
@@ -738,6 +750,15 @@ html {
         border-bottom: 1px solid #ccc;
         z-index: auto;
         /* Reset z-index */
+    }
+
+    /* Footer visibility toggles */
+    .mobile-footer {
+        display: none !important;
+    }
+
+    .desktop-footer {
+        display: block !important;
     }
 
     #filter-pills .pill {

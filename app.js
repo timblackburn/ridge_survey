@@ -153,10 +153,19 @@ const districtFallbackPalette = [
 // property overlay is open. Tune this value to tweak the visual center.
 const RIGHT_PANEL_OFFSET_MULTIPLIER = 1.05;
 
+// Load building styles
+fetch('building_styles.json')
+    .then(response => response.json())
+    .then(data => {
+        window.buildingStyles = data;
+    })
+    .catch(error => console.error('Error loading building styles:', error));
+
 // Initialize the map
 const map = L.map('map', {
     zoomControl: false,
-    scrollWheelZoom: true
+    scrollWheelZoom: true,
+    tap: false // Fix for mobile tap issues
 }).setView([41.71, -87.67], 13);
 
 L.control.zoom({ position: 'topright' }).addTo(map);
@@ -462,6 +471,29 @@ function setupEventListeners() {
             const currentHash = window.location.hash || '';
             const lastNonProp = getLastNonPropertyHash();
             const isTopLevelPanel = currentHash === '#districts' || currentHash === '#landmarks' || currentHash === '#survey';
+
+            // Handle survey subroutes with hierarchical back navigation
+            if (currentHash.startsWith('#survey/color/')) {
+                navigateToPanel('#survey/color');
+                return;
+            }
+            if (currentHash.startsWith('#survey/decade/')) {
+                navigateToPanel('#survey/decade');
+                return;
+            }
+            if (currentHash.startsWith('#survey/style/')) {
+                navigateToPanel('#survey/style');
+                return;
+            }
+            if (currentHash.startsWith('#survey/architect/')) {
+                navigateToPanel('#survey/architect');
+                return;
+            }
+            if (currentHash === '#survey/color' || currentHash === '#survey/decade' || currentHash === '#survey/style' || currentHash === '#survey/architect') {
+                navigateToPanel('#survey');
+                return;
+            }
+
             if (isTopLevelPanel) {
                 navigateHomeWithTrace('back-button: top-level panel');
             } else {
@@ -529,6 +561,29 @@ function setupEventListeners() {
             if (e.target.classList.contains('back-button')) {
                 const currentHash = window.location.hash || '';
                 const lastNonProp = getLastNonPropertyHash();
+
+                // Handle survey subroutes with hierarchical back navigation
+                if (currentHash.startsWith('#survey/color/')) {
+                    navigateToPanel('#survey/color');
+                    return;
+                }
+                if (currentHash.startsWith('#survey/decade/')) {
+                    navigateToPanel('#survey/decade');
+                    return;
+                }
+                if (currentHash.startsWith('#survey/style/')) {
+                    navigateToPanel('#survey/style');
+                    return;
+                }
+                if (currentHash.startsWith('#survey/architect/')) {
+                    navigateToPanel('#survey/architect');
+                    return;
+                }
+                if (currentHash === '#survey/color' || currentHash === '#survey/decade' || currentHash === '#survey/style' || currentHash === '#survey/architect') {
+                    navigateToPanel('#survey');
+                    return;
+                }
+
                 const shouldGoToDistricts = currentHash.startsWith('#district/') || activeDistrictContext || selectedDistrictLayer || (lastNonProp && (lastNonProp === '#districts' || lastNonProp.startsWith('#district/')));
                 if (shouldGoToDistricts) {
                     navigateToPanel('#districts');
@@ -600,6 +655,119 @@ function setupEventListeners() {
     map.on('dragstart', disableLocation);
     map.on('locationfound', handleLocationFound);
     map.on('locationerror', handleLocationError);
+
+    // Setup mobile drag interactions
+    setupMobileDrag();
+}
+
+/**
+ * Sets up touch drag behavior for the mobile bottom sheet
+ */
+function setupMobileDrag() {
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+    let startHeight = 0;
+    const sheet = document.getElementById('bottom-sheet');
+    const header = sheet.querySelector('.sheet-header'); // We'll attach to the sheet but check target
+
+    // Helper to get current sheet height
+    const getSheetHeight = () => sheet.offsetHeight;
+
+    sheet.addEventListener('touchstart', (e) => {
+        // Only enable drag if touching the header area or the handle
+        // We want to allow scrolling in the content area, so ignore if target is in scrollable-content
+        if (e.target.closest('.scrollable-content')) return;
+
+        // Also allow if it's the handle
+        if (e.target.closest('.handle') || e.target.closest('.sheet-header')) {
+            startY = e.touches[0].clientY;
+            startHeight = getSheetHeight();
+            isDragging = true;
+            sheet.style.transition = 'none'; // Disable transition during drag
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+
+        currentY = e.touches[0].clientY;
+        const deltaY = startY - currentY; // Up is positive delta (increasing height)
+
+        // Calculate new height
+        // Base height is startHeight
+        // If deltaY is positive, we are dragging up -> increase height
+        // If deltaY is negative, we are dragging down -> decrease height
+
+        let newHeight = startHeight + deltaY;
+
+        // Constraints
+        const minHeight = 60; // Collapsed state
+        const maxHeight = window.innerHeight - 100; // Below nav pills
+
+        if (newHeight < minHeight) newHeight = minHeight;
+        if (newHeight > maxHeight) newHeight = maxHeight;
+
+        sheet.style.height = `${newHeight}px`;
+
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        sheet.style.transition = 'transform 0.3s ease-out, height 0.3s ease-out';
+
+        // Snap to nearest state
+        const currentHeight = getSheetHeight();
+        const threshold = window.innerHeight * 0.25;
+
+        // If we dragged it significantly up, expand it
+        // If we dragged it significantly down, collapse it
+        // Or just snap to 45vh or full height?
+
+        // Let's implement a simple toggle-like snap
+        // If height > 50% of screen, snap to near-top (maxHeight)
+        // If height < 20% of screen, snap to collapsed (60px)
+        // Otherwise snap to default (45vh)
+
+        if (currentHeight > window.innerHeight * 0.6) {
+            sheet.style.height = '85vh'; // Near top
+            sheet.classList.add('expanded');
+        } else if (currentHeight < 150) {
+            sheet.style.height = ''; // Reset to CSS default (which might be 45vh but we want collapsed)
+            sheet.classList.remove('expanded');
+            // Force height reset to allow CSS to take over for collapsed state if needed, 
+            // but our CSS uses transform for collapsed state usually.
+            // Wait, the CSS says: height: 45vh; transform: translateY(calc(100% - 60px)); for collapsed.
+            // So we should clear the inline height and let the class dictate.
+            sheet.style.height = '';
+        } else {
+            // Snap to default 45vh
+            sheet.style.height = '45vh';
+            sheet.classList.add('expanded');
+        }
+    });
+
+    // Header click to toggle (if not dragged)
+    // We need to distinguish click from drag. 
+    // The existing click listener on sheetHandle handles toggle.
+    // We added a click listener to the header in CSS (cursor pointer), but need JS.
+
+    const sheetHeader = document.querySelector('.sheet-header'); // This might be dynamic, so we might need delegation
+    // Actually, sheetContent is static, but its innerHTML changes. 
+    // So we should use delegation on sheetContent or bottomSheet.
+
+    bottomSheet.addEventListener('click', (e) => {
+        // If it was a drag, we probably shouldn't toggle, but click event fires after touchend.
+        // Simple heuristic: if we are in a "drag" sequence, we might want to suppress click?
+        // But here we just want to enable header clicking.
+
+        const header = e.target.closest('.sheet-header');
+        if (header && !e.target.closest('button') && !e.target.closest('.highlight-toggle')) {
+            // Toggle expansion
+            toggleBottomSheet();
+        }
+    });
 }
 
 // ---------------------------------------------------------------
@@ -1014,9 +1182,12 @@ function buildDistrictsPanel() {
             ${chicagoHtml ? `<h4 style="padding: 15px 15px 5px; margin: 0; color: #666; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Chicago Landmark Districts</h4><ul class="item-list">${chicagoHtml}</ul>` : ''}
             ${nationalHtml ? `<h4 style="padding: 15px 15px 5px; margin: 0; color: #666; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">National Register Districts</h4><ul class="item-list">${nationalHtml}</ul>` : ''}
             ${(!chicagoHtml && !nationalHtml) ? '<p style="padding: 20px; text-align: center; color: #666;">No districts found in this view.</p>' : ''}
-            <div style="padding: 15px 0 0 0; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
+            <div class="mobile-footer" style="padding: 15px 0 0 0; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
                 Browse designated historic districts. Properties in these areas may be subject to preservation review and eligible for financial incentives.
             </div>
+        </div>
+        <div class="desktop-footer" style="padding: 15px 20px; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; background-color: #f9f9f9;">
+            Browse designated historic districts. Properties in these areas may be subject to preservation review and eligible for financial incentives.
         </div>
     `;
     toggleBottomSheet(true);
@@ -1041,7 +1212,7 @@ function buildLandmarksPanel() {
     if (filteredLandmarks.length === 0) {
         listHtml = (isMapFollowEnabled && allLandmarks.length > 0) ? '<p>No landmarks found in this map view.</p>' : '<p>No individual landmarks found in survey data.</p>';
     } else {
-        listHtml = `<ul class="item-list">${filteredLandmarks.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatAddress(f.properties)}</a></li>`).join('')}</ul>`;
+        listHtml = `<ul class="item-list">${filteredLandmarks.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('')}</ul>`;
     }
 
     const followToggleHtml = `<button id="follow-map-toggle" class="pill ${isMapFollowEnabled ? 'active' : ''}">Follow map</button>`;
@@ -1052,9 +1223,12 @@ function buildLandmarksPanel() {
         </div>
         <div class="scrollable-content">
             ${listHtml}
-            <div style="padding: 15px 0 0 0; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
+            <div class="mobile-footer" style="padding: 15px 0 0 0; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
                 View individual properties designated as Chicago Landmarks for their exceptional historical or architectural significance.
             </div>
+        </div>
+        <div class="desktop-footer" style="padding: 15px 20px; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; background-color: #f9f9f9;">
+            View individual properties designated as Chicago Landmarks for their exceptional historical or architectural significance.
         </div>
     `;
     toggleBottomSheet(true);
@@ -1105,7 +1279,7 @@ function buildSearchPanel(query, results) {
     filteredResults.sort(propertySort);
 
     let listHtml = filteredResults.length === 0 ? '<p>No matching properties found.</p>' :
-        `<ul class="item-list">${filteredResults.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatAddress(f.properties)}</a></li>`).join('')}</ul>`;
+        `<ul class="item-list">${filteredResults.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('')}</ul>`;
 
     const followToggleHtml = `<button id="follow-map-toggle" class="pill ${isMapFollowEnabled ? 'active' : ''}">Follow map</button>`;
     sheetContent.innerHTML = `
@@ -1132,9 +1306,12 @@ function buildSurveyPanel() {
                 <li data-hash="survey/architect"><a>Architect</a></li>
                 <li data-hash="survey/style"><a>Building Style</a></li>
             </ul>
-            <div style="padding: 15px 0 0 0; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
+            <div class="mobile-footer" style="padding: 15px 0 0 0; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
                 Explore data from the <strong>Chicago Historic Resources Survey (CHRS)</strong>, a 1996 inventory of historically and architecturally significant structures.
             </div>
+        </div>
+        <div class="desktop-footer" style="padding: 15px 20px; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; background-color: #f9f9f9;">
+            Explore data from the <strong>Chicago Historic Resources Survey (CHRS)</strong>, a 1996 inventory of historically and architecturally significant structures.
         </div>
     `;
     toggleBottomSheet(true);
@@ -1152,15 +1329,40 @@ function buildColorCodeListPanel() {
         colorGroups[color].push(f);
     });
 
-    const colorKeys = Object.keys(colorGroups).sort();
+    // Specified color order
+    const colorOrder = ["Red", "Orange", "Yellow", "Yellow/Green", "Green", "Purple", "Blue"];
+    const colorKeys = colorOrder.filter(color => colorGroups[color]);
 
-    const colorDescriptions = {
-        "Red": "Significant contribution to community character.",
-        "Orange": "Contributes to community character.",
-        "Yellow": "Contributed to character but altered.",
-        "Green": "Contributed to character but significantly altered.",
-        "Purple": "Listed on Illinois Historic Structures Survey.",
-        "Blue": "Built too recently for survey (post-1940)."
+    // Color hex codes and descriptions
+    const colorConfig = {
+        "Red": {
+            hex: "#FF0000",
+            desc: "Significant in the broader context of the City of Chicago, the State of Illinois, or the United States of America."
+        },
+        "Orange": {
+            hex: "#FFA500",
+            desc: "Significant in the context of the surrounding community."
+        },
+        "Yellow": {
+            hex: "#FFFF00",
+            desc: "Relatively unaltered, pre-1940s, part of a concentration of significant buildings."
+        },
+        "Yellow/Green": {
+            hex: "#ADFF2F",
+            desc: "Pre-1940s whose exteriors were covered with artificial siding, part of a concentration of significant buildings."
+        },
+        "Green": {
+            hex: "#008000",
+            desc: "Pre-1940s whose exteriors have been slightly altered."
+        },
+        "Purple": {
+            hex: "#800080",
+            desc: "Pre-1940s whose exteriors have been extensively altered."
+        },
+        "Blue": {
+            hex: "#0000FF",
+            desc: "Constructed after 1940. Too recent to be properly evaluated for significance and were generally not included in the CHRS database."
+        }
     };
 
     let listHtml;
@@ -1170,13 +1372,13 @@ function buildColorCodeListPanel() {
         listHtml = `<ul class="item-list">${colorKeys.map(color => {
             const highlightKey = `survey/color:${color}`;
             highlightFeatureCache[highlightKey] = colorGroups[color];
-            const desc = colorDescriptions[color] || "";
+            const config = colorConfig[color] || { hex: color.toLowerCase(), desc: "" };
             return `<li class="filter-list-item" data-color="${color}">
                         <span class="filter-item-text">
-                            <span class="color-swatch" style="background-color: ${color.toLowerCase()}"></span>
+                            <span class="color-swatch" style="background-color: ${config.hex}"></span>
                             <div>
                                 <div>${color} (${colorGroups[color].length})</div>
-                                <div style="font-size: 0.8em; color: #666; margin-top: 2px;">${desc}</div>
+                                <div style="font-size: 0.8em; color: #666; margin-top: 2px;">${config.desc}</div>
                             </div>
                         </span>
                         ${renderHighlightButton(highlightKey, color)}
@@ -1216,10 +1418,21 @@ function buildDecadeListPanel() {
             const color = stringToColor(decade);
             const highlightKey = `survey/decade:${decade}`;
             highlightFeatureCache[highlightKey] = decadeGroups[decade];
+
+            // Aggregate styles for this decade
+            const styles = new Set();
+            decadeGroups[decade].forEach(f => {
+                const s = f.properties['CHRS_Building Style'];
+                if (s) styles.add(s);
+            });
+            const styleList = Array.from(styles).sort().join(', ');
+
             return `<li class="filter-list-item" data-decade="${decade}">
                         <span class="filter-item-text">
                             <span class="color-swatch" style="background-color: ${color}"></span>
-                            ${decade} (${decadeGroups[decade].length})
+                            <div>
+                                <div>${decade} (${decadeGroups[decade].length})</div>
+                            </div>
                         </span>
                         ${renderHighlightButton(highlightKey, decade)}
                     </li>`;
@@ -1250,22 +1463,68 @@ function buildArchitectListPanel() {
     });
 
     const architectKeys = Object.keys(architectGroups).sort();
+
+    // Group architects by first letter of last name
+    const byLetter = {};
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+    architectKeys.forEach(architect => {
+        // Extract last name (assume format: "LAST, FIRST" or "LAST NAME")
+        const lastNameMatch = architect.match(/^([A-Z]+)/);
+        const firstLetter = lastNameMatch ? lastNameMatch[1][0].toUpperCase() : '#';
+        if (!byLetter[firstLetter]) byLetter[firstLetter] = [];
+        byLetter[firstLetter].push(architect);
+    });
+
+    // Build alphabet navigation
+    const alphabetHtml = `
+        <div style="display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 15px; border-bottom: 1px solid #eee; background: #fff;">
+            ${alphabet.map(letter => {
+        const hasArchitects = byLetter[letter] && byLetter[letter].length > 0;
+        return `<button class="letter-nav-btn" data-letter="${letter}" style="
+                    padding: 4px 8px; 
+                    border: 1px solid ${hasArchitects ? '#4285F4' : '#ddd'}; 
+                    background: ${hasArchitects ? '#fff' : '#f5f5f5'}; 
+                    color: ${hasArchitects ? '#4285F4' : '#999'};
+                    border-radius: 4px;
+                    cursor: ${hasArchitects ? 'pointer' : 'default'};
+                    font-size: 0.85em;
+                    font-weight: ${hasArchitects ? '600' : '400'};
+                    ${hasArchitects ? '' : 'opacity: 0.5;'}
+                ">${letter}</button>`;
+    }).join('')}
+        </div>
+    `;
+
     let listHtml;
     if (architectKeys.length === 0) {
         listHtml = '<p>No architect data available.</p>';
     } else {
-        listHtml = `<ul class="item-list">${architectKeys.map(architect => {
-            const color = stringToColor(architect);
-            const highlightKey = `survey/architect:${architect}`;
-            highlightFeatureCache[highlightKey] = architectGroups[architect];
-            return `<li class="filter-list-item" data-architect="${architect}">
-                        <span class="filter-item-text">
-                            <span class="color-swatch" style="background-color: ${color}"></span>
-                            ${architect} (${architectGroups[architect].length})
-                        </span>
-                        ${renderHighlightButton(highlightKey, architect)}
-                    </li>`;
-        }).join('')}</ul>`;
+        // Build list grouped by letter with anchors
+        const groupedHtml = alphabet.filter(letter => byLetter[letter]).map(letter => {
+            const architects = byLetter[letter];
+            const itemsHtml = architects.map(architect => {
+                const color = stringToColor(architect);
+                const highlightKey = `survey/architect:${architect}`;
+                highlightFeatureCache[highlightKey] = architectGroups[architect];
+                return `<li class="filter-list-item" data-architect="${architect}">
+                            <span class="filter-item-text">
+                                <span class="color-swatch" style="background-color: ${color}"></span>
+                                ${architect} (${architectGroups[architect].length})
+                            </span>
+                            ${renderHighlightButton(highlightKey, architect)}
+                        </li>`;
+            }).join('');
+
+            return `
+                <div id="letter-${letter}" style="scroll-margin-top: 60px;">
+                    <h4 style="padding: 10px 15px; margin: 15px 0 5px; background: #f0f0f0; color: #666; font-size: 0.9em; font-weight: 700;">${letter}</h4>
+                    <ul class="item-list" style="margin-top: 0;">${itemsHtml}</ul>
+                </div>
+            `;
+        }).join('');
+
+        listHtml = groupedHtml;
     }
 
     const followToggleHtml = `<button id="follow-map-toggle" class="pill ${isMapFollowEnabled ? 'active' : ''}">Follow map</button>`;
@@ -1274,8 +1533,27 @@ function buildArchitectListPanel() {
             <h3><button class="back-button">&larr;</button>Architect</h3>
             ${followToggleHtml}
         </div>
+        ${alphabetHtml}
         <div class="scrollable-content">${listHtml}</div>
     `;
+
+    // Add click handlers for letter navigation
+    sheetContent.querySelectorAll('.letter-nav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const letter = e.target.dataset.letter;
+            const target = document.getElementById(`letter-${letter}`);
+            if (target) {
+                const scrollContainer = sheetContent.querySelector('.scrollable-content');
+                if (scrollContainer) {
+                    scrollContainer.scrollTo({
+                        top: target.offsetTop - scrollContainer.offsetTop,
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        });
+    });
+
     toggleBottomSheet(true);
 }
 
@@ -1335,7 +1613,7 @@ function buildColorCodeDetailPanel(color) {
     }
 
     filteredFeatures.sort(propertySort);
-    let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatAddress(f.properties)}</a></li>`).join('');
+    let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('');
 
     const highlightKey = `survey/color:${color}`;
     const highlightTargets = highlightFeatureCache[highlightKey] || features;
@@ -1364,7 +1642,7 @@ function buildDecadeDetailPanel(decade) {
     }
 
     filteredFeatures.sort(propertySort);
-    let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatAddress(f.properties)}</a></li>`).join('');
+    let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('');
 
     const highlightKey = `survey/decade:${decade}`;
     const highlightTargets = highlightFeatureCache[highlightKey] || features;
@@ -1393,7 +1671,7 @@ function buildArchitectDetailPanel(architect) {
     }
 
     filteredFeatures.sort(propertySort);
-    let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatAddress(f.properties)}</a></li>`).join('');
+    let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('');
 
     const highlightKey = `survey/architect:${architect}`;
     const highlightTargets = highlightFeatureCache[highlightKey] || features;
@@ -1422,7 +1700,7 @@ function buildStyleDetailPanel(style) {
     }
 
     filteredFeatures.sort(propertySort);
-    let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatAddress(f.properties)}</a></li>`).join('');
+    let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('');
 
     const highlightKey = `survey/style:${style}`;
     const highlightTargets = highlightFeatureCache[highlightKey] || features;
@@ -1430,12 +1708,50 @@ function buildStyleDetailPanel(style) {
     setHighlight(highlightTargets, highlightKey);
 
     const followToggleHtml = `<button id="follow-map-toggle" class="pill ${isMapFollowEnabled ? 'active' : ''}">Follow map</button>`;
+
+    let footerHtmlDesktop = '';
+    let footerHtmlMobile = '';
+
+    if (window.buildingStyles && window.buildingStyles[style]) {
+        const fullDesc = window.buildingStyles[style].description;
+        const modalCall = `openStyleModal('${style.replace(/'/g, "\\'")}')`;
+
+        // Truncate description to ~350 chars (approx 6 lines)
+        let displayDesc = fullDesc;
+        const limit = 350;
+        if (fullDesc.length > limit) {
+            // Cut at the last space before the limit
+            const cutIndex = fullDesc.lastIndexOf(' ', limit);
+            if (cutIndex > 0) {
+                displayDesc = fullDesc.substring(0, cutIndex) + `<a href="#" onclick="return openStyleModal('${style.replace(/'/g, "\\'")}');" style="color: #4285F4; font-weight: bold; text-decoration: none; margin-left: 4px;">...</a>`;
+            }
+        }
+
+        // Mobile Footer
+        footerHtmlMobile = `
+            <div class="mobile-footer" style="padding: 15px 20px; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
+                ${displayDesc}
+            </div>
+        `;
+
+        // Desktop Footer
+        footerHtmlDesktop = `
+            <div class="desktop-footer" style="padding: 15px 20px; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; background-color: #f9f9f9;">
+                ${displayDesc}
+            </div>
+        `;
+    }
+
     sheetContent.innerHTML = `
         <div class="sheet-header">
             <h3><button class="back-button">&larr;</button>${style} (${filteredFeatures.length})</h3>
             ${followToggleHtml}
         </div>
-        <div class="scrollable-content"><ul class="item-list">${listHtml}</ul></div>
+        <div class="scrollable-content">
+            <ul class="item-list">${listHtml}</ul>
+            ${footerHtmlMobile}
+        </div>
+        ${footerHtmlDesktop}
     `;
     toggleBottomSheet(true);
 }
@@ -1478,7 +1794,7 @@ function buildDistrictDetailsPanel(districtFeature) {
     filteredProperties.sort(propertySort);
 
     let listHtml = filteredProperties.length === 0 ? '<p>No properties from the survey found in this district.</p>' :
-        `<ul class="item-list">${filteredProperties.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatAddress(f.properties)}</a></li>`).join('')}</ul>`;
+        `<ul class="item-list">${filteredProperties.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('')}</ul>`;
 
     const followToggleHtml = `<button id="follow-map-toggle" class="pill ${isMapFollowEnabled ? 'active' : ''}">Follow map</button>`;
     sheetContent.innerHTML = `
@@ -1566,12 +1882,13 @@ const districtContent = {
             <h4>Understanding the Colors</h4>
             <p>The survey assigned a color code to each property reflecting its significance relative to others in the survey.</p>
             <ul style="list-style: none; padding: 0;">
-                <li style="margin-bottom: 10px;"><strong style="color: #d32f2f;">Red</strong>: Properties possess some architectural feature or historical association that significantly contributes to the character of the community.</li>
-                <li style="margin-bottom: 10px;"><strong style="color: #f57c00;">Orange</strong>: Properties possess some architectural feature or historical association that contributes to the character of the community.</li>
-                <li style="margin-bottom: 10px;"><strong style="color: #fbc02d;">Yellow</strong>: Properties contributed to the character of the community but have been altered.</li>
-                <li style="margin-bottom: 10px;"><strong style="color: #388e3c;">Green</strong>: Properties contributed to the character of the community but have been more significantly altered.</li>
-                <li style="margin-bottom: 10px;"><strong style="color: #7b1fa2;">Purple</strong>: Properties listed on the Illinois Historic Structures Survey but not included in the CHRS.</li>
-                <li style="margin-bottom: 10px;"><strong style="color: #1976d2;">Blue</strong>: Properties built too recently to be included in the survey (post-1940).</li>
+                <li style="margin-bottom: 10px;"><strong style="color: #FF0000;">Red</strong>: Significant in the broader context of the City of Chicago, the State of Illinois, or the United States of America.</li>
+                <li style="margin-bottom: 10px;"><strong style="color: #FFA500;">Orange</strong>: Significant in the context of the surrounding community.</li>
+                <li style="margin-bottom: 10px;"><strong style="color: #FFFF00;">Yellow</strong>: Relatively unaltered, pre-1940s, part of a concentration of significant buildings.</li>
+                <li style="margin-bottom: 10px;"><strong style="color: #ADFF2F;">Yellow/Green</strong>: Pre-1940s whose exteriors were covered with artificial siding, part of a concentration of significant buildings.</li>
+                <li style="margin-bottom: 10px;"><strong style="color: #008000;">Green</strong>: Pre-1940s whose exteriors have been slightly altered.</li>
+                <li style="margin-bottom: 10px;"><strong style="color: #800080;">Purple</strong>: Pre-1940s whose exteriors have been extensively altered.</li>
+                <li style="margin-bottom: 10px;"><strong style="color: #0000FF;">Blue</strong>: Constructed after 1940. Too recent to be properly evaluated for significance and were generally not included in the CHRS database.</li>
             </ul>
         `
     }
@@ -1583,8 +1900,13 @@ const modalTitle = document.getElementById('modal-title');
 const modalBody = document.getElementById('modal-body');
 const modalCloseBtn = document.getElementById('modal-close-btn');
 
-function openModal(key) {
-    const content = districtContent[key] || { title: key, body: '<p>No additional information available for this district.</p>' };
+function openModal(key, contentOverride = null) {
+    let content;
+    if (contentOverride) {
+        content = { title: key, body: contentOverride };
+    } else {
+        content = districtContent[key] || { title: key, body: '<p>No additional information available.</p>' };
+    }
     modalTitle.textContent = content.title;
     modalBody.innerHTML = content.body;
     modalOverlay.classList.add('active');
@@ -1607,6 +1929,66 @@ if (modalCloseBtn) {
         }
     });
 }
+
+// Global function to open style modal with description and images
+window.openStyleModal = function (styleName) {
+    if (window.buildingStyles && window.buildingStyles[styleName]) {
+        const desc = window.buildingStyles[styleName].description;
+        let content = `<div style="line-height: 1.6; color: #333;">${desc}</div>`;
+
+        // Find up to 3 images
+        if (surveyData && surveyData.features) {
+            const matchingFeatures = surveyData.features.filter(f => {
+                const s = f.properties['CHRS_Building Style'];
+                return s === styleName && f.properties.PIN;
+            });
+
+            // Simple shuffle
+            for (let i = matchingFeatures.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [matchingFeatures[i], matchingFeatures[j]] = [matchingFeatures[j], matchingFeatures[i]];
+            }
+
+            const examples = matchingFeatures.slice(0, 3);
+
+            if (examples.length > 0) {
+                content += '<div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">';
+                content += '<h4 style="margin-bottom: 15px; color: #444;">Examples in Survey</h4>';
+                examples.forEach(f => {
+                    const addr = formatAddress(f.properties);
+                    const year = f.properties.CHRS_Built_Date || f.properties.YEAR_BUILT || 'Unknown Year';
+
+                    // Construct Image URL from PIN
+                    let imgUrl = null;
+                    const rawPin = f.properties.PIN ? String(f.properties.PIN) : null;
+                    if (rawPin) {
+                        const cleanedPin = rawPin.replace(/^0+/, '');
+                        if (cleanedPin.length > 0) {
+                            const paddedPin = cleanedPin.padEnd(14, '0');
+                            imgUrl = `https://maps.cookcountyil.gov/groundphotos/${paddedPin}`;
+                        }
+                    }
+
+                    if (imgUrl) {
+                        content += `
+                            <div style="margin-bottom: 20px;">
+                                <div style="background-color: transparent; border-radius: 8px;">
+                                    <img src="${imgUrl}" alt="${addr}" style="width: 100%; display: block; clip-path: inset(0 0 13% 0 round 8px); margin-bottom: -7%;" onerror="this.parentElement.parentElement.style.display='none'">
+                                </div>
+                                <div style="font-size: 0.85em; color: #666; margin-top: 2px; font-weight: 500; text-align: center; position: relative; z-index: 1;">${addr} (${year})</div>
+                            </div>
+                        `;
+                    }
+                });
+                content += '</div>';
+            }
+        }
+        openModal(styleName, content);
+    } else {
+        openModal(styleName, '<p>No additional information available.</p>');
+    }
+    return false; // Prevent default link navigation
+};
 
 /* ============================================================
    SHEET UPDATE LOGIC
@@ -1673,18 +2055,24 @@ function updateSheetContent(address, props, imageHtml) {
         <div class="property-meta">
             <div class="meta-row"><span class="meta-key">Address:</span><span class="meta-val">${props.CHRS_Address}</span></div>
             <div class="meta-row"><span class="meta-key">PIN:</span><span class="meta-val">${val(props.CHRS_PIN) || 'N/A'}</span></div>
-            <div class="meta-row"><span class="meta-key">Year built:</span><span class="meta-val">${val(props.CHRS_Built_Date) || 'N/A'}</span></div>
-            <div class="meta-row"><span class="meta-key">Original owner:</span><span class="meta-val">${val(props.CHRS_Owner) || 'N/A'}</span></div>
+            <div class="meta-row"><span class="meta-key">Year built:</span><span class="meta-val">${val(props.CHRS_Built_Date) || 'N/A'}*</span></div>
             <div class="meta-row"><span class="meta-key">Architect:</span><span class="meta-val">${val(props.CHRS_Architect)
             ? `<a href="#survey/architect/${encodeURIComponent(props.CHRS_Architect)}" style="color: var(--primary); text-decoration: underline;">${props.CHRS_Architect}</a>`
             : 'N/A'
         }</span></div>
-            <div class="meta-row"><span class="meta-key">Style:</span><span class="meta-val">${val(props['CHRS_Building Style']) || 'N/A'}</span></div>
+            <div class="meta-row"><span class="meta-key">Style:</span><span class="meta-val">${(() => {
+            const s = val(props['CHRS_Building Style']);
+            if (!s) return 'N/A';
+            if (window.buildingStyles && window.buildingStyles[s]) {
+                return `<a href="#" class="style-link" data-style="${s}" style="color: #333; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: #999; cursor: help;">${s}</a>`;
+            }
+            return `<a href="#survey/style/${encodeURIComponent(s)}" style="color: inherit; text-decoration: none; border-bottom: 1px dotted #999;">${s}</a>`;
+        })()}</span></div>
             <div class="meta-row"><span class="meta-key">Building type:</span><span class="meta-val">${val(props.CHRS_Type) || 'N/A'}</span></div>
             <div class="meta-row">
                 <span class="meta-key">Color code:</span>
                 <span class="meta-val">
-                    ${colorVal ? `<button class="info-btn" data-district="CHRS_Color" style="margin: 0; padding: 0; color: ${colorHex}; text-decoration: underline; font-weight: bold;">${colorVal}</button>` : 'N/A'}
+                    ${colorVal ? `<button class="info-btn" data-district="CHRS_Color" style="margin: 0; padding: 0; color: ${colorHex}; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: #999; cursor: help; font-weight: bold; background-color: transparent !important;">${colorVal}</button>` : 'N/A'}
                 </span>
             </div>
         </div>
@@ -1698,11 +2086,40 @@ function updateSheetContent(address, props, imageHtml) {
         </div>
     `;
 
+    // Building name HTML with tooltip
+    const buildingName = val(props.building_name);
+    const buildingNameSource = val(props.building_name_source);
+    const buildingNameHtml = buildingName ?
+        `<div style="color: #888; font-size: 0.9em; margin-top: 4px; font-weight: 400;" title="${buildingNameSource || 'Source unknown'}">${buildingName}</div>`
+        : '';
+
     targetContent.innerHTML = `
         <button class="close-property-button">&times;</button>
         <div class="scrollable-content">
-            <div class="sheet-header" style="padding-top: 5px;">
+            <div class="sheet-header" style="padding-top: 5px; padding-right: 40px;">
                 <h3>${address}</h3>
+                ${(() => {
+            // Ribbon logic
+            const isRidge = props.ridge_historic_district; // Assuming this is the flag for being in the district
+            // The user specifically asked for "contributing_ridge_historic_district" field from geojson
+            // We need to check if that prop exists.
+            const contrib = props.contributing_ridge_historic_district;
+
+            if (window.location.hash.includes('Ridge%20Historic%20District') || (activeDistrictContext === 'Ridge Historic District')) {
+                let ribbonIcon = 'ribbon-outline.svg';
+                let ribbonTitle = 'Not contributing property in the Ridge Historic District';
+                let ribbonFill = 'none';
+
+                if (contrib === 'Y') {
+                    ribbonIcon = 'ribbon-gold.svg';
+                    ribbonTitle = 'Contributing property to the Ridge Historic District';
+                }
+
+                return `<img src="${ribbonIcon}" title="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; vertical-align: middle;" />`;
+            }
+            return '';
+        })()}
+                ${buildingNameHtml}
             </div>
             ${imageHtml}
             <div class="property-card">
@@ -1726,7 +2143,7 @@ function updateSheetContent(address, props, imageHtml) {
                     ${cityHtml}
                 </div>
 
-                <p class="prop-note">Note: Year built data should be verified with the <a href="https://researchguides.uic.edu/CBP" target="_blank">original building permit</a>.</p>
+                <p class="prop-note">* Note: Year built data should be verified with the <a href="https://researchguides.uic.edu/CBP" target="_blank">original building permit</a>.</p>
                 
                 <div style="margin-top: 20px; text-align: center;">
                     <button id="view-report-btn" style="
@@ -1790,6 +2207,16 @@ function updateSheetContent(address, props, imageHtml) {
             const districtName = btn.getAttribute('data-district');
             openModal(districtName);
         });
+    });
+
+    // 2.5 Style Links
+    // Event delegation for style links
+    document.addEventListener('click', function (e) {
+        if (e.target && e.target.classList.contains('style-link')) {
+            e.preventDefault();
+            const styleName = e.target.dataset.style;
+            window.openStyleModal(styleName);
+        }
     });
 
     // 3. Full Report Button
@@ -2343,6 +2770,22 @@ function formatAddress(props) {
 }
 
 /**
+ * Formats a list item with address and optional building name
+ */
+function formatListItem(props) {
+    const address = formatAddress(props);
+    const buildingName = props.building_name;
+
+    if (buildingName) {
+        return `
+            <div>${address}</div>
+            <div style="color: #888; font-size: 0.85em; margin-top: 2px;">${buildingName}</div>
+        `;
+    }
+    return address;
+}
+
+/**
  * Sorts two features by Street Name, then House Number
  */
 function propertySort(a, b) {
@@ -2520,10 +2963,24 @@ function showHighlightCircles(features) {
     if (points.length === 0) return;
 
     removeHighlightCircles();
+
+    // Calculate radius based on zoom level
+    const zoom = map.getZoom();
+    let radius;
+    if (zoom >= 18) {
+        radius = 36; // Triple size for closest zoom (was 12)
+    } else if (zoom >= 17) {
+        radius = 36; // Triple size for second closest zoom (was 12) 
+    } else if (zoom >= 16) {
+        radius = 24; // Double size for third closest zoom (was 12)
+    } else {
+        radius = 12; // Default size for other zooms
+    }
+
     highlightLayer = L.geoJSON({ type: 'FeatureCollection', features: points }, {
         pane: 'highlightPane',
         pointToLayer: (feat, latlng) => L.circleMarker(latlng, {
-            radius: 12,
+            radius: radius,
             color: '#FFD54F',
             fillColor: '#FFD54F',
             fillOpacity: 0.55,
