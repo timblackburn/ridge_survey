@@ -1834,7 +1834,7 @@ function buildDistrictDetailsPanel(districtFeature) {
                     ribbonIcon = 'ribbon-gold.svg';
                     ribbonTitle = 'Contributing property to the Ridge Historic District';
                 }
-                ribbonHtml = `<img src="${ribbonIcon}" title="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; flex-shrink: 0;" />`;
+                ribbonHtml = `<img src="${ribbonIcon}" title="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; flex-shrink: 0; display: block;" />`;
             }
 
             return `<li data-id="${f.properties.BLDG_ID}">
@@ -2470,7 +2470,7 @@ function showDefaultPanel() {
                 Search for your address above to see if your building has a landmark designation or is included in the 1995 Chicago Historic Resources Survey (CHRS).
             </div>
             <p style="font-size: 0.9em; color: #666; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">
-                <em>Created by Tim Blackburn. Brought to you by the Ridge Historical Society and Beverly Area Planning Association.</em>
+                <em>Created by Tim Blackburn. Brought to you by the Ridge Historical Society and Beverly Area Planning Association. (v0.3)</em>
             </p>
         </div>
     `;
