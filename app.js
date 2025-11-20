@@ -33,6 +33,7 @@ let bldgIdToDistrict = {};
 let highlightOrigin = null;
 let highlightControlButton = null;
 let highlightFeatureCache = {};
+let lastListHash = ''; // Track the last list view for navigation
 
 // Lightweight performance counters for heavy Turf operations. Exposed via
 // `window.getPerfStats()` so you can inspect counts and cumulative time.
@@ -750,71 +751,78 @@ function setupMobileDrag() {
     let isDragging = false;
     let startHeight = 0;
     const sheet = document.getElementById('bottom-sheet');
+    const sheetContent = sheet.querySelector('.sheet-content'); // We need to check scroll on this or its child
 
     // Helper to get current sheet height
     const getSheetHeight = () => sheet.offsetHeight;
 
     sheet.addEventListener('touchstart', (e) => {
-        // If touching scrollable content, only allow drag if we are at the top of scroll
-        // AND the user is trying to drag DOWN (to collapse).
-        // But simpler: just define a "drag zone" at the top.
-
         const touchY = e.touches[0].clientY;
-        const sheetRect = sheet.getBoundingClientRect();
-        const relativeY = touchY - sheetRect.top;
 
-        // Allow drag if:
-        // 1. Touching the handle
-        // 2. Touching the top 60px of the sheet (header area)
-        // 3. NOT touching a button or interactive element
+        // Check if we are touching an interactive element
+        const isInteractive = e.target.closest('button') || e.target.closest('a') || e.target.closest('.highlight-toggle') || e.target.closest('.handle');
 
+        // If touching the handle, always drag
         const isHandle = e.target.closest('.handle');
-        const isHeaderArea = relativeY < 60;
-        const isInteractive = e.target.closest('button') || e.target.closest('a') || e.target.closest('.highlight-toggle');
 
-        if ((isHandle || isHeaderArea) && !isInteractive) {
-            startY = e.touches[0].clientY;
-            startHeight = getSheetHeight();
-            isDragging = true;
-            sheet.style.transition = 'none'; // Disable transition during drag
-            // Prevent default to stop scrolling if we are dragging the sheet
-            // e.preventDefault(); // Careful, this might block clicks
+        if (isInteractive && !isHandle) {
+            // Let the button click happen
+            return;
         }
+
+        startY = touchY;
+        startHeight = getSheetHeight();
+        isDragging = true;
+        sheet.style.transition = 'none'; // Disable transition during drag
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
 
-        // Prevent default to stop page scrolling/bounce
-        // e.preventDefault(); 
-
         currentY = e.touches[0].clientY;
-        let deltaY = startY - currentY; // Up is positive delta
+        let deltaY = startY - currentY; // Up is positive (expanding)
 
-        // Increase sensitivity for dragging down (negative delta)
-        // This makes it feel "lighter" to pull down
-        if (deltaY < 0) {
-            deltaY *= 1.5;
+        const currentHeight = sheet.offsetHeight;
+        // Calculate max height (approx window height - top offset)
+        const maxHeight = window.innerHeight - 60; // Allow going almost to top
+
+        // Find the scrollable container
+        const scrollable = sheet.querySelector('.scrollable-content');
+        const scrollTop = scrollable ? scrollable.scrollTop : 0;
+
+        // Logic for Nested Scrolling:
+
+        // Case 1: Dragging UP (Expanding)
+        if (deltaY > 0) {
+            if (currentHeight < maxHeight) {
+                // Sheet is not full yet -> Expand sheet, prevent content scroll
+                if (e.cancelable) e.preventDefault();
+                let newHeight = startHeight + deltaY;
+                if (newHeight > maxHeight) newHeight = maxHeight;
+                sheet.style.height = `${newHeight}px`;
+            } else {
+                // Sheet is full -> Allow content scroll (do nothing here, let native scroll happen)
+                // Unless we are already at bottom? No, native scroll handles that.
+            }
+        }
+        // Case 2: Dragging DOWN (Collapsing)
+        else {
+            if (scrollTop <= 0) {
+                // Content is at top -> Collapse sheet, prevent content scroll
+                if (e.cancelable) e.preventDefault();
+
+                // Add resistance/sensitivity
+                deltaY *= 1.5;
+
+                let newHeight = startHeight + deltaY;
+                if (newHeight < 60) newHeight = 60;
+                sheet.style.height = `${newHeight}px`;
+            } else {
+                // Content is scrolled down -> Allow content scroll (do nothing)
+            }
         }
 
-        let newHeight = startHeight + deltaY;
-
-        // Constraints
-        const minHeight = 60; // Collapsed
-        // Max height should leave room for top pills (approx 160px from top)
-        // Pills are in #top-ui which is at top: 20px.
-        // Let's say we want to stop 160px from top.
-        const maxHeight = window.innerHeight - 160;
-
-        if (newHeight < minHeight) newHeight = minHeight;
-        if (newHeight > maxHeight) newHeight = maxHeight;
-
-        sheet.style.height = `${newHeight}px`;
-
-        // Visual feedback: if dragging, remove 'expanded' class logic temporarily
-        // or just let the height override it.
-
-    }, { passive: false }); // passive: false to allow preventDefault if we wanted
+    }, { passive: false }); // passive: false is CRITICAL to allow preventDefault
 
     document.addEventListener('touchend', (e) => {
         if (!isDragging) return;
@@ -823,31 +831,30 @@ function setupMobileDrag() {
 
         const currentHeight = getSheetHeight();
         const windowHeight = window.innerHeight;
+        const maxHeight = windowHeight - 60;
 
         // Snap logic
-        // Zones:
-        // 1. Collapsed: < 150px
-        // 2. Half (Default): 150px - 60% of screen
-        // 3. Full: > 60% of screen
-
         let targetState = 'half';
 
-        // Adjust thresholds for easier collapsing
-        if (currentHeight < 200) { // Increased from 150 to make it easier to collapse
-            targetState = 'collapsed';
-        } else if (currentHeight > windowHeight * 0.6) {
+        // If we are near the top (e.g. > 80% of max), snap to full
+        if (currentHeight > maxHeight * 0.85) {
             targetState = 'full';
-        } else {
+        }
+        // If we are small, collapse
+        else if (currentHeight < 200) {
+            targetState = 'collapsed';
+        }
+        // Otherwise snap to half
+        else {
             targetState = 'half';
         }
 
         // Apply state
         if (targetState === 'collapsed') {
-            sheet.style.height = ''; // Reset inline height
+            sheet.style.height = '';
             sheet.classList.remove('expanded');
+            toggleBottomSheet(false); // Ensure state consistency
         } else if (targetState === 'full') {
-            // Use calculated max height for full state
-            const maxHeight = window.innerHeight - 160;
             sheet.style.height = `${maxHeight}px`;
             sheet.classList.add('expanded');
         } else {
@@ -856,7 +863,6 @@ function setupMobileDrag() {
             sheet.classList.add('expanded');
         }
     });
-
     // Click handling for toggle is still useful
     bottomSheet.addEventListener('click', (e) => {
         // Only toggle if it wasn't a drag (we can't easily detect that here without state, 
@@ -868,10 +874,6 @@ function setupMobileDrag() {
         const isInteractive = e.target.closest('button') || e.target.closest('a') || e.target.closest('.highlight-toggle');
 
         if (header && !isInteractive) {
-            // If we are currently collapsed, expand to half.
-            // If half, expand to full? Or collapse?
-            // Standard behavior: Toggle between collapsed and (last state or default).
-
             toggleBottomSheet();
         }
     });
@@ -885,6 +887,12 @@ function handleHashChange() {
     if (!isDataLoaded) return;
 
     const hash = window.location.hash;
+
+    // Update lastListHash if this is a list view (not a property view)
+    // This allows the "Close" button on mobile to return to the last context.
+    if (hash && !hash.startsWith('#property/') && hash !== '#') {
+        lastListHash = hash;
+    }
 
     // Push to our custom history tracker, avoiding duplicates.
     if (appHistory.length === 0 || appHistory[appHistory.length - 1] !== hash) {
@@ -1290,11 +1298,11 @@ function buildDistrictsPanel() {
             ${nationalHtml ? `<h4 style="padding: 15px 15px 5px; margin: 0; color: #666; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">National Register Districts</h4><ul class="item-list">${nationalHtml}</ul>` : ''}
             ${(!chicagoHtml && !nationalHtml) ? '<p style="padding: 20px; text-align: center; color: #666;">No districts found in this view.</p>' : ''}
             <div class="mobile-footer" style="padding: 15px 0 0 0; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
-                Browse designated historic districts. Properties in these areas may be subject to preservation review and eligible for financial incentives.
+                Browse designated historic districts. Chicago Landmark District areas are subject to additional permit requirements and approvals for alterations. Financial incentives for preservation are available in some cases.
             </div>
         </div>
         <div class="desktop-footer" style="padding: 15px 20px; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; background-color: #f9f9f9;">
-            Browse designated historic districts. Properties in these areas may be subject to preservation review and eligible for financial incentives.
+            Browse designated historic districts. Chicago Landmark District areas are subject to additional permit requirements and approvals for alterations. Financial incentives for preservation are available in some cases.
         </div>
     `;
     toggleBottomSheet(true);
@@ -2119,7 +2127,7 @@ window.openStyleModal = function (styleName) {
 
 /* ============================================================
    SHEET UPDATE LOGIC
-   ============================================================*/
+   ============================================================ */
 function updateSheetContent(address, props, imageHtml) {
     const val = (field) => (field === null || typeof field === 'undefined' || String(field).trim() === '') ? null : field;
     // If on desktop and rightSheetContent exists, render property into right panel.
@@ -2215,7 +2223,7 @@ function updateSheetContent(address, props, imageHtml) {
                 </span>
             </div>
         </div>
-    ` : '<div class="not-in-survey">Not in building survey</div>';
+    ` : '<div style="color: #666;">Not in survey</div>';
 
     // Chicago city data
     const cityHtml = `
@@ -2292,20 +2300,37 @@ function updateSheetContent(address, props, imageHtml) {
     // Attach Event Listeners
 
     // 1. Close Button
+    // 1. Close Button
     const closeBtn = targetContent.querySelector('.close-property-button');
     if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
+        closeBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevent any default action
+            e.stopPropagation(); // Stop bubbling
+
             if (window.innerWidth >= 768) {
                 // Desktop: hide right sheet
                 if (rightSheet) rightSheet.classList.remove('property-view-active');
                 appContainer.classList.remove('panel-open');
-                // Re-center map if needed (optional, but good UX)
+                // Re-center map if needed
                 setTimeout(() => map.invalidateSize(), 300);
             } else {
-                // Mobile: minimize bottom sheet
-                bottomSheet.classList.remove('property-view-active');
-                toggleBottomSheet(false);
+                // Mobile: Return to the last list view if available
+                if (lastListHash && lastListHash !== '#') {
+                    window.location.hash = lastListHash;
+                } else {
+                    // Fallback: minimize and clear hash
+                    bottomSheet.classList.remove('property-view-active');
+                    toggleBottomSheet(false);
+                    // Clear hash if it's a property hash
+                    if (window.location.hash.startsWith('#property/')) {
+                        // Use replaceState to avoid history clutter, but we want to trigger hashchange?
+                        // Actually, setting hash to '' triggers hashchange which calls showDefaultPanel.
+                        // That's acceptable behavior for "Close" if no history.
+                        window.location.hash = '';
+                    }
+                }
             }
+
             // Clear selection
             if (selectedFeatureLayer) {
                 geoJsonLayer.resetStyle(selectedFeatureLayer);
