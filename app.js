@@ -1337,10 +1337,9 @@ function buildLandmarksPanel() {
     };
 
     // Helper for highlight button
-    const renderHighlightBtn = (key, label) => {
-        const isActive = highlightFeatureCache[key] ? 'active' : '';
+    const renderHighlightBtn = (key, label, isActive = false) => {
         // Use the requested SVG file for the icon
-        return `<button class="highlight-toggle ${isActive}" data-highlight-key="${key}" title="Highlight ${label} on map" style="margin-left: 10px; background: none; border: none; cursor: pointer; padding: 4px;">
+        return `<button class="highlight-toggle ${isActive ? 'active' : ''}" data-highlight-key="${key}" title="Highlight ${label} on map" style="margin-left: 10px; background: none; border: none; cursor: pointer; padding: 4px;">
             <img src="marker-tool-svgrepo-com.svg" style="width: 18px; height: 18px; opacity: ${isActive ? '1' : '0.5'}; filter: ${isActive ? 'none' : 'grayscale(100%)'};" />
         </button>`;
     };
@@ -1361,14 +1360,14 @@ function buildLandmarksPanel() {
             <!-- Chicago Landmarks Section -->
             <div class="property-section-header" style="padding: 15px 10px 5px 10px; display: flex; align-items: center; justify-content: space-between;">
                 <h4 style="margin: 0; padding: 0; color: #666; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">Chicago Landmarks (${filteredLandmarks.length})</h4>
-                ${renderHighlightBtn('landmarks_chicago', 'Chicago Landmarks')}
+                ${renderHighlightBtn('landmarks_chicago', 'Chicago Landmarks', true)}
             </div>
             ${generateList(filteredLandmarks)}
 
             <!-- Contributing Properties Section -->
             <div class="property-section-header" style="padding: 25px 10px 5px 10px; display: flex; align-items: center; justify-content: space-between;">
                 <h4 style="margin: 0; padding: 0; color: #666; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">Contributing Properties to<br>Ridge Historic District (${filteredContributing.length})</h4>
-                ${renderHighlightBtn('landmarks_contributing', 'Contributing Properties')}
+                ${renderHighlightBtn('landmarks_contributing', 'Contributing Properties', false)}
             </div>
             ${generateList(filteredContributing)}
 
@@ -1384,9 +1383,23 @@ function buildLandmarksPanel() {
 
     // Default highlight: Show both Chicago Landmarks AND Contributing Properties
     try { updateSurveyLayer('landmarks'); } catch (e) { console.debug('updateSurveyLayer(landmarks) failed', e); }
-    // Combine both sets of landmarks for the map highlight
-    const allLandmarksAndContributing = [...allLandmarks, ...contributingRidge];
-    setHighlight(allLandmarksAndContributing, 'landmarks_combined');
+
+    // Set highlight ONLY for Chicago Landmarks by default
+    setHighlight(allLandmarks, 'landmarks_chicago');
+
+    // We need to manually set the button state because setHighlight resets it
+    // But wait, setHighlight takes a controlButton argument.
+    // We don't have the DOM element yet because we just set innerHTML.
+    // So we rely on the 'active' class in the HTML we just generated.
+    // However, setHighlight calls resetHighlightButtonState which might clear something?
+    // resetHighlightButtonState clears highlightControlButton.
+    // Since we haven't set highlightControlButton yet, it's fine.
+    // But we need to make sure subsequent clicks work.
+    // When user clicks, handleHighlightToggle will find the button and pass it to setHighlight.
+    // For the initial state, we just want the visual 'active' class (which we added in HTML)
+    // and the map circles (which setHighlight does).
+    // We also need to set highlightOrigin so toggle works.
+    // setHighlight sets highlightOrigin.
 }
 
 /**
