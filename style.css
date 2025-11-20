@@ -627,8 +627,7 @@ html {
 /* NOTE: Do not hide the left panel when a property view is active. */
 /* When property is active, make content fill the panel */
 #bottom-sheet.property-view-active .sheet-content {
-    height: 45vh;
-    /* Mobile: Full 45vh height */
+    /* Mobile: Full 45vh height removed to allow expansion */
     padding-top: 15px;
 }
 
