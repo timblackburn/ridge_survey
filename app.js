@@ -1382,9 +1382,11 @@ function buildLandmarksPanel() {
     `;
     toggleBottomSheet(true);
 
-    // Default highlight: Chicago Landmarks
+    // Default highlight: Show both Chicago Landmarks AND Contributing Properties
     try { updateSurveyLayer('landmarks'); } catch (e) { console.debug('updateSurveyLayer(landmarks) failed', e); }
-    setHighlight(allLandmarks, 'landmarks_chicago');
+    // Combine both sets of landmarks for the map highlight
+    const allLandmarksAndContributing = [...allLandmarks, ...contributingRidge];
+    setHighlight(allLandmarksAndContributing, 'landmarks_combined');
 }
 
 /**
@@ -2736,7 +2738,8 @@ function showDefaultPanel() {
 
                     // Use requestAnimationFrame to ensure DOM is settled
                     requestAnimationFrame(() => {
-                        const targetScrollPosition = 100;
+                        // Increased from 100 to 200 to lower the search bar position
+                        const targetScrollPosition = 200;
 
                         // Set scroll position
                         if (scrollableContent) {
@@ -2761,12 +2764,18 @@ function showDefaultPanel() {
             });
 
             // Blur input when user starts scrolling/dragging (to allow panel to be dragged down)
-            // But NOT when touching the input itself
+            // But NOT when touching the input itself OR the dropdown
             const scrollableContent = sheetContent.querySelector('.scrollable-content');
             if (scrollableContent) {
                 scrollableContent.addEventListener('touchstart', (e) => {
-                    // Only blur if NOT touching the input
-                    if (document.activeElement === input && e.target !== input && !input.contains(e.target)) {
+                    // Only blur if NOT touching the input or dropdown
+                    const isTouchingInputOrDropdown = e.target === input ||
+                        input.contains(e.target) ||
+                        e.target === dropdown ||
+                        dropdown.contains(e.target) ||
+                        e.target.closest('.search-results-dropdown');
+
+                    if (document.activeElement === input && !isTouchingInputOrDropdown) {
                         input.blur();
                     }
                 }, { passive: true });
@@ -3238,8 +3247,15 @@ function updateSurveyLayer(mode, filterValue = null) {
     } else if (mode === 'landmarks') {
         styleFunc = getSurveyStyle;
         filterFunc = (feature) => {
-            const v = feature && feature.properties && feature.properties.individual_landmark;
-            return v && (String(v).trim().toUpperCase() === 'Y' || String(v).trim().toUpperCase() === 'YES');
+            // Include Chicago Landmarks
+            const landmark = feature && feature.properties && feature.properties.individual_landmark;
+            const isLandmark = landmark && (String(landmark).trim().toUpperCase() === 'Y' || String(landmark).trim().toUpperCase() === 'YES');
+
+            // Include Contributing Properties to Ridge Historic District
+            const contributing = feature && feature.properties && feature.properties.contributing_ridge_historic_district;
+            const isContributing = contributing && (String(contributing).trim().toUpperCase() === 'Y' || String(contributing).trim().toUpperCase() === 'YES');
+
+            return isLandmark || isContributing;
         };
     } else if (mode === 'color') {
         styleFunc = (feature) => {
