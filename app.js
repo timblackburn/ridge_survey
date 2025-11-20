@@ -1338,9 +1338,9 @@ function buildLandmarksPanel() {
 
     // Helper for highlight button
     const renderHighlightBtn = (key, label, isActive = false) => {
-        // Use the requested SVG file for the icon
-        return `<button class="highlight-toggle ${isActive ? 'active' : ''}" data-highlight-key="${key}" title="Highlight ${label} on map" style="margin-left: 10px; background: none; border: none; cursor: pointer; padding: 4px;">
-            <img src="marker-tool-svgrepo-com.svg" style="width: 18px; height: 18px; opacity: ${isActive ? '1' : '0.5'}; filter: ${isActive ? 'none' : 'grayscale(100%)'};" />
+        // Use CSS for active state (opacity/filter) via .highlight-active class
+        return `<button class="highlight-toggle ${isActive ? 'highlight-active' : ''}" data-highlight-key="${key}" title="Highlight ${label} on map" style="margin-left: 10px; background: none; border: none; cursor: pointer; padding: 4px;">
+            <img src="marker-tool-svgrepo-com.svg" class="highlight-icon" />
         </button>`;
     };
 
@@ -1385,7 +1385,9 @@ function buildLandmarksPanel() {
     try { updateSurveyLayer('landmarks'); } catch (e) { console.debug('updateSurveyLayer(landmarks) failed', e); }
 
     // Set highlight ONLY for Chicago Landmarks by default
-    setHighlight(allLandmarks, 'landmarks_chicago');
+    // And ensure the button state is correctly linked
+    const chicagoBtn = sheetContent.querySelector('button[data-highlight-key="landmarks_chicago"]');
+    setHighlight(allLandmarks, 'landmarks_chicago', chicagoBtn);
 
     // We need to manually set the button state because setHighlight resets it
     // But wait, setHighlight takes a controlButton argument.
