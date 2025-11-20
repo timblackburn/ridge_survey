@@ -432,7 +432,11 @@ function setupEventListeners() {
                 const target = e && e.originalEvent && e.originalEvent.target;
                 const cls = target && target.classList ? target.classList : null;
                 const isMapBackground = cls && (cls.contains('leaflet-container') || cls.contains('leaflet-tile'));
-                if (isMapBackground && !selectedDistrictLayer && !activeDistrictContext) {
+
+                // *** FIX: Don't navigate home if we are already there ***
+                const isAlreadyHome = !currentHash || currentHash === '#' || currentHash === '';
+
+                if (isMapBackground && !selectedDistrictLayer && !activeDistrictContext && !isAlreadyHome) {
                     navigateHomeWithTrace('map-click: background');
                 }
             } catch (err) {
@@ -694,9 +698,16 @@ function setupCustomTooltip() {
         let top = y + 15;
         let left = x + 15;
 
+        // If going off right edge, flip to left
         if (left + rect.width > window.innerWidth) {
             left = x - rect.width - 10;
         }
+
+        // *** FIX: If flipping to left makes it go off left edge, force it to 0 or center it ***
+        if (left < 0) {
+            left = 10; // Simple safety margin
+        }
+
         if (top + rect.height > window.innerHeight) {
             top = y - rect.height - 10;
         }
@@ -704,6 +715,9 @@ function setupCustomTooltip() {
         tooltip.style.top = `${top}px`;
         tooltip.style.left = `${left}px`;
     };
+
+    // Expose hide globally to allow other components to force hide (e.g. on nav)
+    window.hideTooltip = hide;
 
     // Delegation
     document.addEventListener('mouseover', (e) => {
@@ -735,6 +749,9 @@ function setupCustomTooltip() {
             // We can show it for a few seconds then hide.
             show(target.getAttribute('data-tooltip'), e);
             setTimeout(hide, 3000);
+        } else {
+            // If clicking elsewhere, hide immediately
+            hide();
         }
     });
 }
@@ -890,6 +907,9 @@ function handleHashChange() {
     clearBuildingHighlight();
     clearSearchDropdown();
 
+    // Ensure tooltips are hidden on navigation
+    if (window.hideTooltip) window.hideTooltip();
+
     // Decide whether to preserve the selected district highlight.
     // Keep the district visible when:
     // - we're on a district detail (#district/...), or
@@ -931,7 +951,9 @@ function handleHashChange() {
     // continue showing all district boundaries until the user changes the
     // left-panel view/state.
     if (!shouldPreserveDistrict) {
-        if (prevHash === '#districts' && hash.startsWith('#property/')) {
+        // *** FIX: Also preserve if coming from home (#) or empty hash ***
+        const isFromHome = !prevHash || prevHash === '#' || prevHash === '';
+        if ((prevHash === '#districts' || isFromHome) && hash.startsWith('#property/')) {
             // Keep all district boundaries visible and record special context
             showDistrictsLayer();
             activeDistrictContext = '__ALL_DISTRICTS__';
@@ -1097,7 +1119,7 @@ function handleHashChange() {
     } else {
         // Default "home" state
         showDefaultPanel();
-        updateActivePill(null);
+        updateActivePill('');
         updateSurveyLayer('default');
         showDistrictsLayer();
         setDistrictLayerOpacity(0.6);
@@ -1277,47 +1299,86 @@ function buildDistrictsPanel() {
 }
 
 function buildLandmarksPanel() {
+    // 1. Chicago Landmarks
     const allLandmarks = surveyData.features.filter(f => {
         const value = f.properties.individual_landmark;
         return value && (String(value).trim().toUpperCase() === 'Y' || String(value).trim().toUpperCase() === 'YES');
     });
 
+    // 2. Contributing Properties to Ridge Historic District
+    const contributingRidge = surveyData.features.filter(f => {
+        const value = f.properties.contributing_ridge_historic_district;
+        return value && (String(value).trim().toUpperCase() === 'Y' || String(value).trim().toUpperCase() === 'YES');
+    });
+
     let filteredLandmarks = allLandmarks;
+    let filteredContributing = contributingRidge;
+
     if (isMapFollowEnabled) {
         const featuresInView = getFeaturesInView();
         const inViewIds = new Set(featuresInView.map(f => f.properties.BLDG_ID));
         filteredLandmarks = allLandmarks.filter(f => inViewIds.has(f.properties.BLDG_ID));
+        filteredContributing = contributingRidge.filter(f => inViewIds.has(f.properties.BLDG_ID));
     }
 
     filteredLandmarks.sort(propertySort);
+    filteredContributing.sort(propertySort);
 
-    let listHtml;
-    if (filteredLandmarks.length === 0) {
-        listHtml = (isMapFollowEnabled && allLandmarks.length > 0) ? '<p>No landmarks found in this map view.</p>' : '<p>No individual landmarks found in survey data.</p>';
-    } else {
-        listHtml = `<ul class="item-list">${filteredLandmarks.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('')}</ul>`;
-    }
+    // Helper to generate list HTML
+    const generateList = (items) => {
+        if (items.length === 0) return '<p style="padding: 0 20px; color: #666; font-style: italic;">No properties found in this view.</p>';
+        return `<ul class="item-list">${items.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('')}</ul>`;
+    };
+
+    // Helper for highlight button
+    const renderHighlightBtn = (key, label) => {
+        const isActive = highlightFeatureCache[key] ? 'active' : '';
+        // Use the requested SVG file for the icon
+        return `<button class="highlight-toggle ${isActive}" data-highlight-key="${key}" title="Highlight ${label} on map" style="margin-left: 10px; background: none; border: none; cursor: pointer; padding: 4px;">
+            <img src="marker-tool-svgrepo-com.svg" style="width: 18px; height: 18px; opacity: ${isActive ? '1' : '0.5'}; filter: ${isActive ? 'none' : 'grayscale(100%)'};" />
+        </button>`;
+    };
+
+    // Cache highlight targets
+    highlightFeatureCache['landmarks_chicago'] = allLandmarks;
+    highlightFeatureCache['landmarks_contributing'] = contributingRidge;
 
     const followToggleHtml = `<button id="follow-map-toggle" class="pill ${isMapFollowEnabled ? 'active' : ''}">Follow map</button>`;
+
     sheetContent.innerHTML = `
         <div class="sheet-header">
             <h3><button class="back-button">&larr;</button>Individual Landmarks</h3>
             ${followToggleHtml}
         </div>
         <div class="scrollable-content">
-            ${listHtml}
-            <div class="mobile-footer" style="padding: 15px 0 0 0; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
-                View individual properties designated as Chicago Landmarks for their exceptional historical or architectural significance.
+            
+            <!-- Chicago Landmarks Section -->
+            <div class="property-section-header" style="padding: 15px 10px 5px 10px; display: flex; align-items: center; justify-content: space-between;">
+                <h4 style="margin: 0; padding: 0; color: #666; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">Chicago Landmarks (${filteredLandmarks.length})</h4>
+                ${renderHighlightBtn('landmarks_chicago', 'Chicago Landmarks')}
+            </div>
+            ${generateList(filteredLandmarks)}
+
+            <!-- Contributing Properties Section -->
+            <div class="property-section-header" style="padding: 25px 10px 5px 10px; display: flex; align-items: center; justify-content: space-between;">
+                <h4 style="margin: 0; padding: 0; color: #666; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">Contributing Properties to Ridge Historic District (${filteredContributing.length})</h4>
+                ${renderHighlightBtn('landmarks_contributing', 'Contributing Properties')}
+            </div>
+            ${generateList(filteredContributing)}
+
+            <div class="mobile-footer" style="padding: 15px 20px; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
+                View individual properties designated as Chicago Landmarks and contributing properties to the Ridge Historic District.
             </div>
         </div>
         <div class="desktop-footer" style="padding: 15px 20px; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; background-color: #f9f9f9;">
-            View individual properties designated as Chicago Landmarks for their exceptional historical or architectural significance.
+            View individual properties designated as Chicago Landmarks and contributing properties to the Ridge Historic District.
         </div>
     `;
     toggleBottomSheet(true);
 
+    // Default highlight: Chicago Landmarks
     try { updateSurveyLayer('landmarks'); } catch (e) { console.debug('updateSurveyLayer(landmarks) failed', e); }
-    setHighlight(allLandmarks, 'landmarks');
+    setHighlight(allLandmarks, 'landmarks_chicago');
 }
 
 /**
@@ -1876,28 +1937,86 @@ function buildDistrictDetailsPanel(districtFeature) {
 
     filteredProperties.sort(propertySort);
 
-    let listHtml = filteredProperties.length === 0 ? '<p>No properties from the survey found in this district.</p>' :
-        `<ul class="item-list">${filteredProperties.map(f => {
-            let ribbonHtml = '';
-            if (districtName === 'Ridge Historic District') {
-                const contrib = f.properties.contributing_ridge_historic_district;
-                let ribbonIcon = 'ribbon-outline.svg';
-                let ribbonTitle = 'Not contributing property in the Ridge Historic District';
+    // *** FIX: Jump to Street Logic ***
+    const districtsWithJump = ['Ridge Historic District', 'Brainerd Bungalow Historic District'];
+    let jumpBarHtml = '';
+    let listContentHtml = '';
 
-                if (contrib === 'Y') {
-                    ribbonIcon = 'ribbon-gold.svg';
-                    ribbonTitle = 'Contributing property to the Ridge Historic District';
+    if (districtsWithJump.includes(districtName) && filteredProperties.length > 20) {
+        // Group by Street Name
+        const streetGroups = {};
+        filteredProperties.forEach(f => {
+            const stName = (f.properties.ST_NAME1 || 'Unknown').toUpperCase();
+            if (!streetGroups[stName]) streetGroups[stName] = [];
+            streetGroups[stName].push(f);
+        });
+
+        const sortedStreets = Object.keys(streetGroups).sort();
+
+        // Build Jump Bar (Dropdown)
+        jumpBarHtml = `<div class="jump-bar" style="padding: 10px 20px; background: #f9f9f9; border-bottom: 1px solid #eee;">
+            <select id="jump-to-street-select" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em;">
+                <option value="" disabled selected>Jump to street...</option>
+                ${sortedStreets.map(st => `<option value="street-${st.replace(/\s+/g, '-')}">${st}</option>`).join('')}
+            </select>
+        </div>`;
+
+        // Build Grouped List
+        listContentHtml = sortedStreets.map(st => {
+            const items = streetGroups[st];
+            const groupHtml = items.map(f => {
+                let ribbonHtml = '';
+                if (districtName === 'Ridge Historic District') {
+                    const contrib = f.properties.contributing_ridge_historic_district;
+                    let ribbonIcon = 'ribbon-outline.svg';
+                    let ribbonTitle = 'Not contributing property in the Ridge Historic District';
+
+                    if (contrib === 'Y') {
+                        ribbonIcon = 'ribbon-gold.svg';
+                        ribbonTitle = 'Contributing property to the Ridge Historic District';
+                    }
+                    ribbonHtml = `<img src="${ribbonIcon}" data-tooltip="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; flex-shrink: 0; display: block;" />`;
                 }
-                ribbonHtml = `<img src="${ribbonIcon}" data-tooltip="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; flex-shrink: 0; display: block;" />`;
-            }
 
-            return `<li data-id="${f.properties.BLDG_ID}">
-                        <a style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                            <span>${formatListItem(f.properties)}</span>
-                            ${ribbonHtml}
-                        </a>
-                    </li>`;
-        }).join('')}</ul>`;
+                return `<li data-id="${f.properties.BLDG_ID}">
+                            <a style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <span>${formatListItem(f.properties)}</span>
+                                ${ribbonHtml}
+                            </a>
+                        </li>`;
+            }).join('');
+
+            return `<div id="street-${st.replace(/\s+/g, '-')}" class="list-group">
+                <h4 style="padding: 10px 20px; background: #eee; margin: 0; font-size: 0.9em; color: #555; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd;">${st}</h4>
+                <ul class="item-list" style="margin-top: 0;">${groupHtml}</ul>
+            </div>`;
+        }).join('');
+
+    } else {
+        // Standard List
+        listContentHtml = filteredProperties.length === 0 ? '<p>No properties from the survey found in this district.</p>' :
+            `<ul class="item-list">${filteredProperties.map(f => {
+                let ribbonHtml = '';
+                if (districtName === 'Ridge Historic District') {
+                    const contrib = f.properties.contributing_ridge_historic_district;
+                    let ribbonIcon = 'ribbon-outline.svg';
+                    let ribbonTitle = 'Not contributing property in the Ridge Historic District';
+
+                    if (contrib === 'Y') {
+                        ribbonIcon = 'ribbon-gold.svg';
+                        ribbonTitle = 'Contributing property to the Ridge Historic District';
+                    }
+                    ribbonHtml = `<img src="${ribbonIcon}" data-tooltip="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; flex-shrink: 0; display: block;" />`;
+                }
+
+                return `<li data-id="${f.properties.BLDG_ID}">
+                            <a style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <span>${formatListItem(f.properties)}</span>
+                                ${ribbonHtml}
+                            </a>
+                        </li>`;
+            }).join('')}</ul>`;
+    }
 
     const followToggleHtml = `<button id="follow-map-toggle" class="pill ${isMapFollowEnabled ? 'active' : ''}">Follow map</button>`;
     sheetContent.innerHTML = `
@@ -1905,9 +2024,29 @@ function buildDistrictDetailsPanel(districtFeature) {
             <h3><button class="back-button">&larr;</button>${districtName}</h3>
             ${followToggleHtml}
         </div>
-        <div class="scrollable-content"><ul class="item-list">${listHtml}</ul></div>
+        ${jumpBarHtml}
+        <div class="scrollable-content">${listContentHtml}</div>
     `;
     toggleBottomSheet(true);
+
+    // Add Jump Listeners
+    if (jumpBarHtml) {
+        const select = sheetContent.querySelector('#jump-to-street-select');
+        if (select) {
+            select.addEventListener('change', (e) => {
+                const targetId = e.target.value;
+                const targetEl = document.getElementById(targetId);
+                const scrollContainer = sheetContent.querySelector('.scrollable-content');
+                if (targetEl && scrollContainer) {
+                    scrollContainer.scrollTo({
+                        top: targetEl.offsetTop - scrollContainer.offsetTop,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        }
+    }
+
     if (districtName === 'Beverly/Morgan Park Railroad Station') {
         setHighlight(districtFeatureMap[districtName] || [], `district:${districtName}`);
     }
@@ -2446,6 +2585,7 @@ function generateFullReport(address, props, imageHtml) {
 function buildPropertyCard(props) {
     // DEBUG: Log entry into buildPropertyCard
     console.log('[DEBUG] Entered buildPropertyCard for', props.BLDG_ID, props);
+    if (window.hideTooltip) window.hideTooltip(); // Clear any stuck tooltips immediately
     try {
         // DEBUG: Log property selection and time to help diagnose freezes
         try {
@@ -2478,6 +2618,7 @@ function buildPropertyCard(props) {
                     } catch (e) { }
                     tempImg.onload = () => {
                         // If the image loads, create the image HTML and re-render the sheet content.
+                        if (window.hideTooltip) window.hideTooltip(); // Clear again in case hover happened during load
                         try {
                             const t3 = Date.now();
                             console.log('[DEBUG] Image loaded for', props.BLDG_ID, 'at', t3, 'elapsed since select:', t3 - window._propertySelectStart, 'ms');
@@ -2551,15 +2692,75 @@ function showDefaultPanel() {
             <p style="margin-bottom: 16px;">
                 Building owners can determine if a property is in a historic district and understand potential <strong>financial incentives</strong> or <strong>permit requirements</strong> for alterations.
             </p>
-            <div style="background-color: #f0f7ff; border-left: 4px solid var(--primary); padding: 12px; margin-bottom: 20px; border-radius: 4px;">
-                <strong>Getting Started:</strong><br>
-                Search for your address above to see if your building has a landmark designation or is included in the 1995 Chicago Historic Resources Survey (CHRS).
+        <div style="background-color: #f0f7ff; border-left: 4px solid var(--primary); padding: 12px; margin-bottom: 20px; border-radius: 4px;">
+            <strong>Getting Started:</strong><br>
+            Search for your address see if your building has a landmark designation or is included in the 1995 Chicago Historic Resources Survey (CHRS).
+            
+            <div style="margin-top: 10px; margin-bottom: 0; position: relative;" id="welcome-search-container">
+                <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: #666; pointer-events: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <input type="text" placeholder="Search address..." style="width: 100%; padding: 12px 16px 12px 40px; border: none; border-radius: 24px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 16px; box-sizing: border-box; outline: none;">
+                <div class="search-results-dropdown" style="display: none; position: absolute; top: 100%; left: 16px; right: 16px; background: white; border: 1px solid #eee; border-radius: 0 0 8px 8px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 4px;"></div>
             </div>
-            <p style="font-size: 0.9em; color: #666; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">
-                <em>Created by Tim Blackburn. Brought to you by the Ridge Historical Society and Beverly Area Planning Association. (v0.4)</em>
-            </p>
         </div>
+        
+        <p style="font-size: 0.9em; color: #666; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">
+            <em>Created by Tim Blackburn. Brought to you by the Ridge Historical Society and Beverly Area Planning Association. (v0.4)</em>
+        </p>
+    </div>
     `;
+
+    // *** Add logic for the welcome search bar ***
+    setTimeout(() => {
+        const container = sheetContent.querySelector('#welcome-search-container');
+        if (container) {
+            const input = container.querySelector('input');
+            const dropdown = container.querySelector('.search-results-dropdown');
+
+            input.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                if (query.length < 3) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+                const results = surveyData.features.filter(f => {
+                    const address = formatAddress(f.properties).toLowerCase();
+                    return address.includes(query);
+                }).slice(0, 10); // Limit to 10
+
+                if (results.length > 0) {
+                    dropdown.innerHTML = results.map(f => `
+                        <div class="search-result-item" data-id="${f.properties.BLDG_ID}" data-address="${formatAddress(f.properties)}" style="padding: 10px 16px; cursor: pointer; border-bottom: 1px solid #eee;">
+                            ${formatAddress(f.properties)}
+                        </div>
+                    `).join('');
+                    dropdown.style.display = 'block';
+
+                    // Add click listeners to items
+                    dropdown.querySelectorAll('.search-result-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            const bldgId = item.dataset.id;
+                            const address = item.dataset.address;
+
+                            // Fill input and hide dropdown
+                            input.value = address;
+                            dropdown.style.display = 'none';
+
+                            attemptShowProperty(bldgId);
+                        });
+                    });
+                } else {
+                    dropdown.style.display = 'none';
+                }
+            });
+
+            // Hide on outside click
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        }
+    }, 0);
 }
 
 /**
@@ -3327,6 +3528,7 @@ function isPropertyVisibleInCurrentFilter(bldgId) {
  */
 function attemptShowProperty(bldgId) {
     if (typeof bldgId === 'undefined' || bldgId === null) return;
+    if (window.hideTooltip) window.hideTooltip(); // Clear any stuck tooltips
     try {
         const idStr = String(bldgId);
         if (isPropertyVisibleInCurrentFilter(idStr)) {

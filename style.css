@@ -144,12 +144,31 @@ html {
     background-color: #fff;
     border: 1px solid #dcdcdc;
     border-radius: 20px;
-    padding: 7px 14px;
+    padding: 7px 10px;
     font-size: 0.85em;
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-bottom: 8px;
+}
+
+.home-pill {
+    padding: 6px 10px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.home-pill img {
+    width: 18px;
+    height: 18px;
+    display: block;
+    opacity: 0.7;
+}
+
+.home-pill:hover img,
+.home-pill.active-pill img {
+    opacity: 1;
 }
 
 .pill:hover {
@@ -772,12 +791,20 @@ html {
         box-shadow: none;
         background: none;
         margin: 0;
-        padding: 15px 10px;
+        padding: 15px 4px;
         font-weight: 500;
-        font-size: 0.9em;
+        font-size: 0.85em;
         /* Smaller font to fit */
         white-space: nowrap;
         /* Prevents wrapping */
+    }
+
+    #filter-pills .home-pill {
+        flex-grow: 0;
+        width: 40px;
+        padding: 15px 0;
+        display: flex;
+        justify-content: center;
     }
 
     /* 5. New Active Tab Style */
