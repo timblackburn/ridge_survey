@@ -2742,20 +2742,51 @@ function showDefaultPanel() {
                             if (!scrollableContent) return;
 
                             // Calculate target position (approx 50% down the screen - middle)
-                            // This puts it in a comfortable spot above the keyboard
                             const targetScreenPos = window.innerHeight * 0.5;
 
                             // Get current position
                             const inputRect = input.getBoundingClientRect();
                             const currentScreenPos = inputRect.top;
 
-                            // Calculate difference and adjust scroll
-                            // If current is 500 and target is 200, we need to scroll DOWN (add to scrollTop) by 300
-                            // If current is 100 and target is 200, we need to scroll UP (subtract from scrollTop) by 100
+                            // Calculate difference
+                            // If current is 100 and target is 400, diff is -300. We need to move content DOWN.
                             const diff = currentScreenPos - targetScreenPos;
 
-                            // Apply adjustment
-                            scrollableContent.scrollTop += diff;
+                            // Current state
+                            let currentScroll = scrollableContent.scrollTop;
+                            let currentPadding = parseInt(scrollableContent.style.paddingTop || '0');
+
+                            // We want to apply a shift of 'diff'
+                            // Positive diff = content is too low, move UP (increase scroll, decrease padding)
+                            // Negative diff = content is too high, move DOWN (decrease scroll, increase padding)
+
+                            let shift = diff;
+
+                            if (shift < 0) {
+                                // Moving content DOWN (input is too high)
+                                // First consume scrollTop (scroll up)
+                                const canScrollUp = currentScroll;
+                                const takeFromScroll = Math.min(canScrollUp, Math.abs(shift));
+                                scrollableContent.scrollTop -= takeFromScroll;
+                                shift += takeFromScroll; // shift becomes closer to 0 (e.g. -300 -> -200)
+
+                                // If still need to move down, add padding
+                                if (shift < 0) {
+                                    scrollableContent.style.paddingTop = (currentPadding + Math.abs(shift)) + 'px';
+                                }
+                            } else {
+                                // Moving content UP (input is too low)
+                                // First consume padding (reduce padding)
+                                const canReducePadding = currentPadding;
+                                const takeFromPadding = Math.min(canReducePadding, shift);
+                                scrollableContent.style.paddingTop = (currentPadding - takeFromPadding) + 'px';
+                                shift -= takeFromPadding;
+
+                                // If still need to move up, increase scroll
+                                if (shift > 0) {
+                                    scrollableContent.scrollTop += shift;
+                                }
+                            }
                         };
 
                         // Run adjustment immediately
@@ -2810,8 +2841,9 @@ function showDefaultPanel() {
                         bottomSheet.style.transform = '';  // Reset transform
                         bottomSheet.style.overscrollBehavior = '';  // Allow normal scrolling
 
-                        // Set consistent scroll position after blur
+                        // Reset padding and scroll
                         if (scrollableContent) {
+                            scrollableContent.style.paddingTop = ''; // Remove injected padding
                             scrollableContent.scrollTop = 0;  // Reset to top for consistency
                         }
                     }, 100);
