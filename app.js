@@ -376,6 +376,11 @@ function setupEventListeners() {
             const filter = e.currentTarget.dataset.filter;
             let currentHash = window.location.hash;
 
+            // On mobile, expand panel when pill is tapped
+            if (window.innerWidth < 768) {
+                bottomSheet.classList.add('expanded');
+            }
+
             if (filter === 'districts' && currentHash === '#districts') {
                 navigateHomeWithTrace('pill-click: districts');
             } else if (filter === 'landmarks' && currentHash === '#landmarks') {
@@ -2715,6 +2720,13 @@ function showDefaultPanel() {
         if (container) {
             const input = container.querySelector('input');
             const dropdown = container.querySelector('.search-results-dropdown');
+
+            // Expand panel on focus (mobile) so keyboard doesn't cover it
+            input.addEventListener('focus', () => {
+                if (window.innerWidth < 768) {
+                    bottomSheet.classList.add('expanded');
+                }
+            });
 
             input.addEventListener('input', (e) => {
                 const query = e.target.value.toLowerCase().trim();
