@@ -381,12 +381,13 @@ function setupEventListeners() {
                 bottomSheet.classList.add('expanded');
             }
 
+            // If already on this route, just expand panel and return (don't navigate)
             if (filter === 'districts' && currentHash === '#districts') {
-                navigateHomeWithTrace('pill-click: districts');
+                return; // Stay on districts, panel already expanded above
             } else if (filter === 'landmarks' && currentHash === '#landmarks') {
-                navigateHomeWithTrace('pill-click: landmarks');
+                return; // Stay on landmarks, panel already expanded above
             } else if (filter === 'survey' && currentHash.startsWith('#survey')) {
-                navigateHomeWithTrace('pill-click: survey');
+                return; // Stay on survey, panel already expanded above
             } else {
                 window.location.hash = `#${filter}`;
             }
@@ -2724,7 +2725,21 @@ function showDefaultPanel() {
             // Expand panel on focus (mobile) so keyboard doesn't cover it
             input.addEventListener('focus', () => {
                 if (window.innerWidth < 768) {
-                    bottomSheet.classList.add('expanded');
+                    // Use setTimeout to ensure this happens after any default behavior
+                    setTimeout(() => {
+                        bottomSheet.classList.add('expanded');
+                        // Prevent any collapse by forcing the transform
+                        bottomSheet.style.transform = 'translateY(0)';
+                    }, 50);
+                }
+            });
+
+            // Restore normal behavior on blur
+            input.addEventListener('blur', () => {
+                if (window.innerWidth < 768) {
+                    setTimeout(() => {
+                        bottomSheet.style.transform = '';
+                    }, 100);
                 }
             });
 
