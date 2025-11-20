@@ -2711,7 +2711,7 @@ function showDefaultPanel() {
         </div>
         
         <p style="font-size: 0.9em; color: #666; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">
-            <em>Created by Tim Blackburn. Brought to you by the Ridge Historical Society and Beverly Area Planning Association. (v0.6)</em>
+            <em>Created by Tim Blackburn. Brought to you by the Ridge Historical Society and Beverly Area Planning Association. (v0.7)</em>
         </p>
     </div>
     `;
@@ -2786,9 +2786,18 @@ function showDefaultPanel() {
             input.addEventListener('blur', () => {
                 if (window.innerWidth < 768) {
                     setTimeout(() => {
-                        bottomSheet.style.height = '';
-                        bottomSheet.style.transform = '';
-                        bottomSheet.style.overscrollBehavior = '';
+                        const scrollableContent = sheetContent.querySelector('.scrollable-content');
+
+                        // Keep panel expanded but restore normal middle position
+                        bottomSheet.style.height = '';  // Reset height to default 45vh
+                        bottomSheet.classList.add('expanded');  // Keep it at middle position
+                        bottomSheet.style.transform = '';  // Reset transform
+                        bottomSheet.style.overscrollBehavior = '';  // Allow normal scrolling
+
+                        // Set consistent scroll position after blur
+                        if (scrollableContent) {
+                            scrollableContent.scrollTop = 0;  // Reset to top for consistency
+                        }
                     }, 100);
                 }
             });
