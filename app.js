@@ -751,78 +751,55 @@ function setupMobileDrag() {
     let isDragging = false;
     let startHeight = 0;
     const sheet = document.getElementById('bottom-sheet');
-    const sheetContent = sheet.querySelector('.sheet-content'); // We need to check scroll on this or its child
 
     // Helper to get current sheet height
     const getSheetHeight = () => sheet.offsetHeight;
 
     sheet.addEventListener('touchstart', (e) => {
         const touchY = e.touches[0].clientY;
+        const sheetRect = sheet.getBoundingClientRect();
+        const relativeY = touchY - sheetRect.top;
 
-        // Check if we are touching an interactive element
-        const isInteractive = e.target.closest('button') || e.target.closest('a') || e.target.closest('.highlight-toggle') || e.target.closest('.handle');
+        // Allow drag if:
+        // 1. Touching the handle
+        // 2. Touching the top 60px of the sheet (header area)
+        // 3. NOT touching a button or interactive element
 
-        // If touching the handle, always drag
         const isHandle = e.target.closest('.handle');
+        const isHeaderArea = relativeY < 60;
+        const isInteractive = e.target.closest('button') || e.target.closest('a') || e.target.closest('.highlight-toggle');
 
-        if (isInteractive && !isHandle) {
-            // Let the button click happen
-            return;
+        if ((isHandle || isHeaderArea) && !isInteractive) {
+            startY = e.touches[0].clientY;
+            startHeight = getSheetHeight();
+            isDragging = true;
+            sheet.style.transition = 'none'; // Disable transition during drag
         }
-
-        startY = touchY;
-        startHeight = getSheetHeight();
-        isDragging = true;
-        sheet.style.transition = 'none'; // Disable transition during drag
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
 
         currentY = e.touches[0].clientY;
-        let deltaY = startY - currentY; // Up is positive (expanding)
+        let deltaY = startY - currentY; // Up is positive delta
 
-        const currentHeight = sheet.offsetHeight;
-        // Calculate max height (approx window height - top offset)
-        const maxHeight = window.innerHeight - 60; // Allow going almost to top
-
-        // Find the scrollable container
-        const scrollable = sheet.querySelector('.scrollable-content');
-        const scrollTop = scrollable ? scrollable.scrollTop : 0;
-
-        // Logic for Nested Scrolling:
-
-        // Case 1: Dragging UP (Expanding)
-        if (deltaY > 0) {
-            if (currentHeight < maxHeight) {
-                // Sheet is not full yet -> Expand sheet, prevent content scroll
-                if (e.cancelable) e.preventDefault();
-                let newHeight = startHeight + deltaY;
-                if (newHeight > maxHeight) newHeight = maxHeight;
-                sheet.style.height = `${newHeight}px`;
-            } else {
-                // Sheet is full -> Allow content scroll (do nothing here, let native scroll happen)
-                // Unless we are already at bottom? No, native scroll handles that.
-            }
-        }
-        // Case 2: Dragging DOWN (Collapsing)
-        else {
-            if (scrollTop <= 0) {
-                // Content is at top -> Collapse sheet, prevent content scroll
-                if (e.cancelable) e.preventDefault();
-
-                // Add resistance/sensitivity
-                deltaY *= 1.5;
-
-                let newHeight = startHeight + deltaY;
-                if (newHeight < 60) newHeight = 60;
-                sheet.style.height = `${newHeight}px`;
-            } else {
-                // Content is scrolled down -> Allow content scroll (do nothing)
-            }
+        // Increase sensitivity for dragging down (negative delta)
+        if (deltaY < 0) {
+            deltaY *= 1.5;
         }
 
-    }, { passive: false }); // passive: false is CRITICAL to allow preventDefault
+        let newHeight = startHeight + deltaY;
+
+        // Constraints
+        const minHeight = 60; // Collapsed
+        const maxHeight = window.innerHeight - 160;
+
+        if (newHeight < minHeight) newHeight = minHeight;
+        if (newHeight > maxHeight) newHeight = maxHeight;
+
+        sheet.style.height = `${newHeight}px`;
+
+    }, { passive: false });
 
     document.addEventListener('touchend', (e) => {
         if (!isDragging) return;
@@ -831,21 +808,15 @@ function setupMobileDrag() {
 
         const currentHeight = getSheetHeight();
         const windowHeight = window.innerHeight;
-        const maxHeight = windowHeight - 60;
 
         // Snap logic
         let targetState = 'half';
 
-        // If we are near the top (e.g. > 80% of max), snap to full
-        if (currentHeight > maxHeight * 0.85) {
-            targetState = 'full';
-        }
-        // If we are small, collapse
-        else if (currentHeight < 200) {
+        if (currentHeight < 200) {
             targetState = 'collapsed';
-        }
-        // Otherwise snap to half
-        else {
+        } else if (currentHeight > windowHeight * 0.6) {
+            targetState = 'full';
+        } else {
             targetState = 'half';
         }
 
@@ -853,8 +824,9 @@ function setupMobileDrag() {
         if (targetState === 'collapsed') {
             sheet.style.height = '';
             sheet.classList.remove('expanded');
-            toggleBottomSheet(false); // Ensure state consistency
+            toggleBottomSheet(false);
         } else if (targetState === 'full') {
+            const maxHeight = window.innerHeight - 160;
             sheet.style.height = `${maxHeight}px`;
             sheet.classList.add('expanded');
         } else {
@@ -863,13 +835,9 @@ function setupMobileDrag() {
             sheet.classList.add('expanded');
         }
     });
+
     // Click handling for toggle is still useful
     bottomSheet.addEventListener('click', (e) => {
-        // Only toggle if it wasn't a drag (we can't easily detect that here without state, 
-        // but usually click fires after touchend).
-        // If we just finished dragging, we probably don't want to toggle.
-        // But let's keep it simple: if clicked on header and not interactive, toggle.
-
         const header = e.target.closest('.sheet-header');
         const isInteractive = e.target.closest('button') || e.target.closest('a') || e.target.closest('.highlight-toggle');
 
@@ -2184,6 +2152,7 @@ function updateSheetContent(address, props, imageHtml) {
     const getColorHex = (colorName) => {
         if (!colorName) return '#333';
         const c = colorName.toLowerCase();
+        if (c === 'yellow/green') return '#ADFF2F';
         if (c.includes('red')) return '#d32f2f';
         if (c.includes('orange')) return '#f57c00';
         if (c.includes('yellow')) return '#fbc02d';
@@ -2984,8 +2953,10 @@ function updateSurveyLayer(mode, filterValue = null) {
         styleFunc = (feature) => {
             const color = feature.properties.CHRS_Color;
             if (color) {
+                let fillColor = color.toLowerCase();
+                if (fillColor === 'yellow/green') fillColor = '#ADFF2F';
                 return {
-                    fillColor: color.toLowerCase(), fillOpacity: 0.6,
+                    fillColor: fillColor, fillOpacity: 0.6,
                     color: '#000000', weight: 1, opacity: 0.5
                 };
             }
