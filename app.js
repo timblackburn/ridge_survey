@@ -2741,9 +2741,9 @@ function showDefaultPanel() {
                         const adjustScroll = () => {
                             if (!scrollableContent) return;
 
-                            // Calculate target position (approx 38% down the screen)
+                            // Calculate target position (approx 50% down the screen - middle)
                             // This puts it in a comfortable spot above the keyboard
-                            const targetScreenPos = window.innerHeight * 0.38;
+                            const targetScreenPos = window.innerHeight * 0.5;
 
                             // Get current position
                             const inputRect = input.getBoundingClientRect();
