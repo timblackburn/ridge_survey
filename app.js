@@ -1448,8 +1448,9 @@ function buildSearchPanel(query, results) {
 function buildSurveyPanel() {
     clearHighlight();
     sheetContent.innerHTML = `
-        <div class="sheet-header"><h3><button class="back-button">&larr;</button>Building Survey</h3></div>
+        <div class="sheet-header"><h3><button class="back-button">&larr;</button>Surveys</h3></div>
         <div class="scrollable-content">
+            <h4 style="padding: 15px 10px 5px 10px; margin: 0; color: #666; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">Chicago Historic Resources Survey</h4>
             <ul class="item-list">
                 <li data-hash="survey/color"><a>Color Code</a></li>
                 <li data-hash="survey/decade"><a>Decade Built</a></li>
@@ -2727,15 +2728,28 @@ function showDefaultPanel() {
                 if (window.innerWidth < 768) {
                     // Use setTimeout to ensure this happens after any default browser behavior
                     setTimeout(() => {
-                        // Expand to near full height
+                        const scrollableContent = sheetContent.querySelector('.scrollable-content');
+
+                        // Calculate where the search input is within the scrollable content
+                        const inputRect = input.getBoundingClientRect();
+                        const scrollableRect = scrollableContent.getBoundingClientRect();
+                        const inputOffsetInScrollable = input.offsetTop - scrollableContent.offsetTop;
+
+                        // Target position: 1/3 from top of screen (accounting for pills ~130px)
+                        const targetScreenPosition = window.innerHeight / 3;
+
+                        // Calculate how much to scroll so input appears at targetScreenPosition
+                        // We want: inputOffsetInScrollable - scrollTop = targetScreenPosition - (top of scrollableContent)
+                        const desiredScrollTop = inputOffsetInScrollable - (targetScreenPosition - 130);
+
+                        // Expand panel with enough height to accommodate keyboard and content
                         bottomSheet.style.height = 'calc(100vh - 130px)';
                         bottomSheet.classList.add('expanded');
                         bottomSheet.style.transform = 'translateY(0)';
 
-                        // Scroll the scrollable content to top so Getting Started is visible
-                        const scrollableContent = sheetContent.querySelector('.scrollable-content');
+                        // Scroll to position search bar at 1/3 screen height
                         if (scrollableContent) {
-                            scrollableContent.scrollTop = 0;
+                            scrollableContent.scrollTop = Math.max(0, desiredScrollTop);
                         }
 
                         // Prevent over-scroll (prevent pulling panel down which scrolls map up)
