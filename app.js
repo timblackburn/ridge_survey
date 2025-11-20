@@ -2737,67 +2737,58 @@ function showDefaultPanel() {
                     bottomSheet.style.overscrollBehavior = 'contain';
 
                     // Use requestAnimationFrame to ensure DOM is settled
-                    requestAnimationFrame(() => {
-                        const adjustScroll = () => {
-                            if (!scrollableContent) return;
+                    const startTime = Date.now();
+                    const duration = 600; // Run for 600ms to cover animation time
 
-                            // Calculate target position (approx 50% down the screen - middle)
-                            const targetScreenPos = window.innerHeight * 0.5;
+                    const animateScroll = () => {
+                        if (!scrollableContent) return;
 
-                            // Get current position
-                            const inputRect = input.getBoundingClientRect();
-                            const currentScreenPos = inputRect.top;
+                        const now = Date.now();
+                        if (now - startTime > duration) return;
 
-                            // Calculate difference
-                            // If current is 100 and target is 400, diff is -300. We need to move content DOWN.
-                            const diff = currentScreenPos - targetScreenPos;
+                        // 1. Calculate constants
+                        const scrollableRect = scrollableContent.getBoundingClientRect();
+                        const inputRect = input.getBoundingClientRect();
+                        const currentScroll = scrollableContent.scrollTop;
+                        const currentPadding = parseInt(scrollableContent.style.paddingTop || '0');
 
-                            // Current state
-                            let currentScroll = scrollableContent.scrollTop;
-                            let currentPadding = parseInt(scrollableContent.style.paddingTop || '0');
+                        // 2. Determine the "true" offset of the input from the top of the content (unpadded)
+                        // This value should be constant regardless of scroll/padding
+                        const offsetFromVisualTop = inputRect.top - scrollableRect.top;
+                        const trueContentOffset = offsetFromVisualTop + currentScroll - currentPadding;
 
-                            // We want to apply a shift of 'diff'
-                            // Positive diff = content is too low, move UP (increase scroll, decrease padding)
-                            // Negative diff = content is too high, move DOWN (decrease scroll, increase padding)
+                        // 3. Calculate where we want the input to be
+                        const targetScreenPos = window.innerHeight * 0.5;
 
-                            let shift = diff;
+                        // 4. Calculate required offset from container top to reach target
+                        const targetOffsetFromVisualTop = targetScreenPos - scrollableRect.top;
 
-                            if (shift < 0) {
-                                // Moving content DOWN (input is too high)
-                                // First consume scrollTop (scroll up)
-                                const canScrollUp = currentScroll;
-                                const takeFromScroll = Math.min(canScrollUp, Math.abs(shift));
-                                scrollableContent.scrollTop -= takeFromScroll;
-                                shift += takeFromScroll; // shift becomes closer to 0 (e.g. -300 -> -200)
+                        // 5. Solve for newScroll and newPadding:
+                        // targetOffsetFromVisualTop = trueContentOffset + newPadding - newScroll
+                        // newScroll - newPadding = trueContentOffset - targetOffsetFromVisualTop
 
-                                // If still need to move down, add padding
-                                if (shift < 0) {
-                                    scrollableContent.style.paddingTop = (currentPadding + Math.abs(shift)) + 'px';
-                                }
-                            } else {
-                                // Moving content UP (input is too low)
-                                // First consume padding (reduce padding)
-                                const canReducePadding = currentPadding;
-                                const takeFromPadding = Math.min(canReducePadding, shift);
-                                scrollableContent.style.paddingTop = (currentPadding - takeFromPadding) + 'px';
-                                shift -= takeFromPadding;
+                        const neededShift = trueContentOffset - targetOffsetFromVisualTop;
 
-                                // If still need to move up, increase scroll
-                                if (shift > 0) {
-                                    scrollableContent.scrollTop += shift;
-                                }
-                            }
-                        };
+                        let newScroll = neededShift;
+                        let newPadding = 0;
 
-                        // Run adjustment immediately
-                        adjustScroll();
+                        if (newScroll < 0) {
+                            newPadding = -newScroll;
+                            newScroll = 0;
+                        }
 
-                        // Run again after a short delay to handle layout shifts/keyboard animation
-                        setTimeout(adjustScroll, 50);
+                        // 6. Apply changes
+                        // Only apply if significantly different to avoid jitter
+                        if (Math.abs(scrollableContent.scrollTop - newScroll) > 1 ||
+                            Math.abs(parseInt(scrollableContent.style.paddingTop || '0') - newPadding) > 1) {
+                            scrollableContent.scrollTop = newScroll;
+                            scrollableContent.style.paddingTop = newPadding + 'px';
+                        }
 
-                        // And one more time to be sure
-                        setTimeout(adjustScroll, 200);
-                    });
+                        requestAnimationFrame(animateScroll);
+                    };
+
+                    requestAnimationFrame(animateScroll);
                 }
             });
 
