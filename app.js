@@ -2725,11 +2725,21 @@ function showDefaultPanel() {
             // Expand panel on focus (mobile) so keyboard doesn't cover it
             input.addEventListener('focus', () => {
                 if (window.innerWidth < 768) {
-                    // Use setTimeout to ensure this happens after any default behavior
+                    // Use setTimeout to ensure this happens after any default browser behavior
                     setTimeout(() => {
+                        // Expand to near full height
+                        bottomSheet.style.height = 'calc(100vh - 130px)';
                         bottomSheet.classList.add('expanded');
-                        // Prevent any collapse by forcing the transform
                         bottomSheet.style.transform = 'translateY(0)';
+
+                        // Scroll the scrollable content to top so Getting Started is visible
+                        const scrollableContent = sheetContent.querySelector('.scrollable-content');
+                        if (scrollableContent) {
+                            scrollableContent.scrollTop = 0;
+                        }
+
+                        // Prevent over-scroll (prevent pulling panel down which scrolls map up)
+                        bottomSheet.style.overscrollBehavior = 'contain';
                     }, 50);
                 }
             });
@@ -2738,7 +2748,9 @@ function showDefaultPanel() {
             input.addEventListener('blur', () => {
                 if (window.innerWidth < 768) {
                     setTimeout(() => {
+                        bottomSheet.style.height = '';
                         bottomSheet.style.transform = '';
+                        bottomSheet.style.overscrollBehavior = '';
                     }, 100);
                 }
             });
