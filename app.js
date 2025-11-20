@@ -1092,7 +1092,7 @@ function handleHashChange() {
         if (hash === '#survey') {
             buildSurveyPanel();
             updateSurveyLayer('default');
-            try { smartSetView([41.71, -87.67], 15); } catch (e) { }
+            try { smartSetView([41.71, -87.675], 15); } catch (e) { }
         } else if (hash === '#survey/color') {
             buildColorCodeListPanel();
             updateSurveyLayer('color');
@@ -3891,16 +3891,27 @@ function getRightPanelHalfOffsetPx(scale = 1) {
  */
 function smartSetView(latlng, zoom, options) {
     try {
+        const targetZoom = (typeof zoom !== 'undefined' && zoom !== null) ? zoom : map.getZoom();
         const offsetX = getRightPanelHalfOffsetPx();
+
         if (offsetX && map && latlng) {
-            const cp = map.latLngToContainerPoint(latlng);
-            const targetPoint = L.point(cp.x + offsetX, cp.y);
-            const targetLatLng = map.containerPointToLatLng(targetPoint);
-            if (typeof zoom !== 'undefined' && zoom !== null) {
-                map.setView(targetLatLng, zoom, options);
-            } else {
-                map.setView(targetLatLng, map.getZoom(), options);
-            }
+            // Calculate using project/unproject at the TARGET zoom level
+            // This avoids the issue where calculating at current zoom (e.g. 13) 
+            // and applying to new zoom (e.g. 15) results in a massive shift.
+
+            // 1. Get global pixel coordinates of the target latlng at target zoom
+            const targetPoint = map.project(latlng, targetZoom);
+
+            // 2. We want the map center to be shifted by offsetX relative to the target
+            // If we want target to be Left of center, Center must be Right of target.
+            // So we add offsetX to the target's x-coordinate.
+            // Note: offsetX is positive for right panel.
+            const newCenterPoint = targetPoint.add([offsetX, 0]);
+
+            // 3. Convert back to latlng
+            const newCenterLatLng = map.unproject(newCenterPoint, targetZoom);
+
+            map.setView(newCenterLatLng, targetZoom, options);
             return;
         }
     } catch (e) {
@@ -3980,7 +3991,7 @@ function navigateToPanel(panelHash) {
                 }
             } catch (e) { console.debug('navigateToPanel(#landmarks) map adjust error', e); }
         } else if (h === '#survey') {
-            try { smartSetView([41.71, -87.67], 13); } catch (e) { }
+            try { smartSetView([41.71, -87.675], 15); } catch (e) { }
         }
 
         // Finally, set the hash to change the panel. This will also get
