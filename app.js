@@ -1133,7 +1133,7 @@ function handleHashChange() {
         try { smartSetView([41.71, -87.67], 13); } catch (e) { /* swallow */ }
         // *** FIX: Correctly toggle panel based on screen size ***
         if (window.innerWidth < 768) {
-            toggleBottomSheet(false); // Close mobile panel
+            toggleBottomSheet(true); // Show mobile panel at middle position
         } else {
             toggleBottomSheet(true); // Ensure desktop panel is open
         }
@@ -2724,51 +2724,58 @@ function showDefaultPanel() {
             const dropdown = container.querySelector('.search-results-dropdown');
 
             // Expand panel on focus (mobile) so keyboard doesn't cover it
-            input.addEventListener('focus', () => {
+            input.addEventListener('focus', (e) => {
                 if (window.innerWidth < 768) {
-                    // Use setTimeout to ensure this happens after any default browser behavior
-                    setTimeout(() => {
-                        const scrollableContent = sheetContent.querySelector('.scrollable-content');
+                    const scrollableContent = sheetContent.querySelector('.scrollable-content');
 
-                        // Calculate where the search input is within the scrollable content
-                        const inputRect = input.getBoundingClientRect();
-                        const scrollableRect = scrollableContent.getBoundingClientRect();
-                        const inputOffsetInScrollable = input.offsetTop - scrollableContent.offsetTop;
+                    // Expand panel immediately
+                    bottomSheet.style.height = 'calc(100vh - 130px)';
+                    bottomSheet.classList.add('expanded');
+                    bottomSheet.style.transform = 'translateY(0)';
+                    bottomSheet.style.overscrollBehavior = 'contain';
 
-                        // Target position: around middle of screen (accounting for pills ~130px)
-                        // Increased from 1/3 to 1/2 to lower the position
-                        const targetScreenPosition = window.innerHeight / 2;
+                    // Use requestAnimationFrame to ensure DOM is settled
+                    requestAnimationFrame(() => {
+                        const targetScrollPosition = 100;
 
-                        // Calculate how much to scroll so input appears at targetScreenPosition
-                        // We want: inputOffsetInScrollable - scrollTop = targetScreenPosition - (top of scrollableContent)
-                        const desiredScrollTop = inputOffsetInScrollable - (targetScreenPosition - 130);
-
-                        // Expand panel with enough height to accommodate keyboard and content
-                        bottomSheet.style.height = 'calc(100vh - 130px)';
-                        bottomSheet.classList.add('expanded');
-                        bottomSheet.style.transform = 'translateY(0)';
-
-                        // Scroll to position search bar at target height
+                        // Set scroll position
                         if (scrollableContent) {
-                            scrollableContent.scrollTop = Math.max(0, desiredScrollTop);
+                            scrollableContent.scrollTop = targetScrollPosition;
                         }
 
-                        // Prevent over-scroll (prevent pulling panel down which scrolls map up)
-                        bottomSheet.style.overscrollBehavior = 'contain';
-                    }, 50);
+                        // Force scroll position again after a short delay to override any browser scrolling
+                        setTimeout(() => {
+                            if (scrollableContent) {
+                                scrollableContent.scrollTop = targetScrollPosition;
+                            }
+                        }, 50);
+
+                        // One more time to be absolutely sure
+                        setTimeout(() => {
+                            if (scrollableContent) {
+                                scrollableContent.scrollTop = targetScrollPosition;
+                            }
+                        }, 150);
+                    });
                 }
             });
 
             // Blur input when user starts scrolling/dragging (to allow panel to be dragged down)
+            // But NOT when touching the input itself
             const scrollableContent = sheetContent.querySelector('.scrollable-content');
             if (scrollableContent) {
-                scrollableContent.addEventListener('touchstart', () => {
-                    if (document.activeElement === input) {
+                scrollableContent.addEventListener('touchstart', (e) => {
+                    // Only blur if NOT touching the input
+                    if (document.activeElement === input && e.target !== input && !input.contains(e.target)) {
                         input.blur();
                     }
                 }, { passive: true });
+            }
 
-                scrollableContent.addEventListener('scroll', () => {
+            // Also blur when touching the sheet handle to drag
+            const handle = document.querySelector('.handle');
+            if (handle) {
+                handle.addEventListener('touchstart', () => {
                     if (document.activeElement === input) {
                         input.blur();
                     }
@@ -2831,6 +2838,11 @@ function showDefaultPanel() {
             });
         }
     }, 0);
+
+    // On mobile, default panel to middle position (expanded)
+    if (window.innerWidth < 768) {
+        bottomSheet.classList.add('expanded');
+    }
 }
 
 /**
