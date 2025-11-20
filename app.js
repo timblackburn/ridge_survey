@@ -1367,7 +1367,7 @@ function buildLandmarksPanel() {
 
             <!-- Contributing Properties Section -->
             <div class="property-section-header" style="padding: 25px 10px 5px 10px; display: flex; align-items: center; justify-content: space-between;">
-                <h4 style="margin: 0; padding: 0; color: #666; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">Contributing Properties to Ridge Historic District (${filteredContributing.length})</h4>
+                <h4 style="margin: 0; padding: 0; color: #666; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">Contributing Properties to<br>Ridge Historic District (${filteredContributing.length})</h4>
                 ${renderHighlightBtn('landmarks_contributing', 'Contributing Properties')}
             </div>
             ${generateList(filteredContributing)}
@@ -2735,8 +2735,9 @@ function showDefaultPanel() {
                         const scrollableRect = scrollableContent.getBoundingClientRect();
                         const inputOffsetInScrollable = input.offsetTop - scrollableContent.offsetTop;
 
-                        // Target position: 1/3 from top of screen (accounting for pills ~130px)
-                        const targetScreenPosition = window.innerHeight / 3;
+                        // Target position: around middle of screen (accounting for pills ~130px)
+                        // Increased from 1/3 to 1/2 to lower the position
+                        const targetScreenPosition = window.innerHeight / 2;
 
                         // Calculate how much to scroll so input appears at targetScreenPosition
                         // We want: inputOffsetInScrollable - scrollTop = targetScreenPosition - (top of scrollableContent)
@@ -2747,7 +2748,7 @@ function showDefaultPanel() {
                         bottomSheet.classList.add('expanded');
                         bottomSheet.style.transform = 'translateY(0)';
 
-                        // Scroll to position search bar at 1/3 screen height
+                        // Scroll to position search bar at target height
                         if (scrollableContent) {
                             scrollableContent.scrollTop = Math.max(0, desiredScrollTop);
                         }
@@ -2757,6 +2758,22 @@ function showDefaultPanel() {
                     }, 50);
                 }
             });
+
+            // Blur input when user starts scrolling/dragging (to allow panel to be dragged down)
+            const scrollableContent = sheetContent.querySelector('.scrollable-content');
+            if (scrollableContent) {
+                scrollableContent.addEventListener('touchstart', () => {
+                    if (document.activeElement === input) {
+                        input.blur();
+                    }
+                }, { passive: true });
+
+                scrollableContent.addEventListener('scroll', () => {
+                    if (document.activeElement === input) {
+                        input.blur();
+                    }
+                }, { passive: true });
+            }
 
             // Restore normal behavior on blur
             input.addEventListener('blur', () => {
