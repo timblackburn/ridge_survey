@@ -1092,7 +1092,7 @@ function handleHashChange() {
         if (hash === '#survey') {
             buildSurveyPanel();
             updateSurveyLayer('default');
-            try { smartSetView([41.71, -87.67], 13); } catch (e) { }
+            try { smartSetView([41.71, -87.67], 15); } catch (e) { }
         } else if (hash === '#survey/color') {
             buildColorCodeListPanel();
             updateSurveyLayer('color');
@@ -2707,8 +2707,8 @@ function showDefaultPanel() {
             
             <div style="margin-top: 10px; margin-bottom: 0; position: relative;" id="welcome-search-container">
                 <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: #666; pointer-events: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                <input type="text" placeholder="Search address..." style="width: 100%; padding: 12px 16px 12px 40px; border: none; border-radius: 24px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 16px; box-sizing: border-box; outline: none;">
-                <div class="search-results-dropdown" style="display: none; position: absolute; top: 100%; left: 16px; right: 16px; background: white; border: 1px solid #eee; border-radius: 0 0 8px 8px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 4px;"></div>
+                <input type="text" id="welcome-search-input" placeholder="Search address..." style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
+                <div id="welcome-search-results" class="search-results-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
             </div>
         </div>
         
@@ -2722,124 +2722,97 @@ function showDefaultPanel() {
     setTimeout(() => {
         const container = sheetContent.querySelector('#welcome-search-container');
         if (container) {
-            const input = container.querySelector('input');
-            const dropdown = container.querySelector('.search-results-dropdown');
+            const input = container.querySelector('#welcome-search-input');
+            const dropdown = container.querySelector('#welcome-search-results');
 
-            // Expand panel on focus (mobile) so keyboard doesn't cover it
-            input.addEventListener('focus', (e) => {
-                if (window.innerWidth < 768) {
-                    const scrollableContent = sheetContent.querySelector('.scrollable-content');
-
-                    // Expand panel immediately
-                    bottomSheet.style.height = 'calc(100vh - 130px)';
-                    bottomSheet.classList.add('expanded');
-                    bottomSheet.style.transform = 'translateY(0)';
-                    bottomSheet.style.overscrollBehavior = 'contain';
-
-                    // Use requestAnimationFrame to ensure DOM is settled
-                    const startTime = Date.now();
-                    const duration = 600; // Run for 600ms to cover animation time
-
-                    const animateScroll = () => {
-                        if (!scrollableContent) return;
-
-                        const now = Date.now();
-                        if (now - startTime > duration) return;
-
-                        // 1. Calculate constants
-                        const scrollableRect = scrollableContent.getBoundingClientRect();
-                        const inputRect = input.getBoundingClientRect();
-                        const currentScroll = scrollableContent.scrollTop;
-                        const currentPadding = parseInt(scrollableContent.style.paddingTop || '0');
-
-                        // 2. Determine the "true" offset of the input from the top of the content (unpadded)
-                        // This value should be constant regardless of scroll/padding
-                        const offsetFromVisualTop = inputRect.top - scrollableRect.top;
-                        const trueContentOffset = offsetFromVisualTop + currentScroll - currentPadding;
-
-                        // 3. Calculate where we want the input to be
-                        const targetScreenPos = window.innerHeight * 0.5;
-
-                        // 4. Calculate required offset from container top to reach target
-                        const targetOffsetFromVisualTop = targetScreenPos - scrollableRect.top;
-
-                        // 5. Solve for newScroll and newPadding:
-                        // targetOffsetFromVisualTop = trueContentOffset + newPadding - newScroll
-                        // newScroll - newPadding = trueContentOffset - targetOffsetFromVisualTop
-
-                        const neededShift = trueContentOffset - targetOffsetFromVisualTop;
-
-                        let newScroll = neededShift;
-                        let newPadding = 0;
-
-                        if (newScroll < 0) {
-                            newPadding = -newScroll;
-                            newScroll = 0;
-                        }
-
-                        // 6. Apply changes
-                        // Only apply if significantly different to avoid jitter
-                        if (Math.abs(scrollableContent.scrollTop - newScroll) > 1 ||
-                            Math.abs(parseInt(scrollableContent.style.paddingTop || '0') - newPadding) > 1) {
-                            scrollableContent.scrollTop = newScroll;
-                            scrollableContent.style.paddingTop = newPadding + 'px';
-                        }
-
-                        requestAnimationFrame(animateScroll);
-                    };
-
-                    requestAnimationFrame(animateScroll);
-                }
-            });
-
-            // Blur input when user starts scrolling/dragging (to allow panel to be dragged down)
-            // But NOT when touching the input itself OR the dropdown
-            const scrollableContent = sheetContent.querySelector('.scrollable-content');
-            if (scrollableContent) {
-                scrollableContent.addEventListener('touchstart', (e) => {
-                    // Only blur if NOT touching the input or dropdown
-                    const isTouchingInputOrDropdown = e.target === input ||
-                        input.contains(e.target) ||
-                        e.target === dropdown ||
-                        dropdown.contains(e.target) ||
-                        e.target.closest('.search-results-dropdown');
-
-                    if (document.activeElement === input && !isTouchingInputOrDropdown) {
-                        input.blur();
+            if (input) {
+                // Handle search input
+                input.addEventListener('input', (e) => {
+                    const query = e.target.value;
+                    if (query.length > 0) {
+                        const results = surveyData.features.filter(f => {
+                            const address = formatAddress(f.properties).toLowerCase();
+                            return address.includes(query.toLowerCase());
+                        }).slice(0, 10); // Limit to 10
+                        showSearchDropdown(results, dropdown, input); // Assuming showSearchDropdown is adapted or a new one is created
+                    } else {
+                        dropdown.style.display = 'none';
                     }
-                }, { passive: true });
-            }
+                });
 
-            // Also blur when touching the sheet handle to drag
-            const handle = document.querySelector('.handle');
-            if (handle) {
-                handle.addEventListener('touchstart', () => {
-                    if (document.activeElement === input) {
-                        input.blur();
+                // Expand panel on focus (mobile) so keyboard doesn't cover it
+                input.addEventListener('focus', (e) => {
+                    if (window.innerWidth < 768) {
+                        // Expand panel immediately
+                        bottomSheet.style.height = 'calc(100vh - 130px)';
+                        bottomSheet.classList.add('expanded');
+                        bottomSheet.style.transform = 'translateY(0)';
+                        bottomSheet.style.overscrollBehavior = 'contain';
+
+                        // Use scrollIntoView repeatedly to handle animation
+                        const startTime = Date.now();
+                        const duration = 600; // Run for 600ms
+
+                        const keepInView = () => {
+                            const now = Date.now();
+                            if (now - startTime > duration) return;
+
+                            input.scrollIntoView({ block: 'center', behavior: 'auto' });
+                            requestAnimationFrame(keepInView);
+                        };
+
+                        requestAnimationFrame(keepInView);
                     }
-                }, { passive: true });
-            }
+                });
 
-            // Restore normal behavior on blur
-            input.addEventListener('blur', () => {
-                if (window.innerWidth < 768) {
-                    setTimeout(() => {
-                        const scrollableContent = sheetContent.querySelector('.scrollable-content');
+                // Blur input when user starts scrolling/dragging (to allow panel to be dragged down)
+                // But NOT when touching the input itself OR the dropdown
+                const scrollableContent = sheetContent.querySelector('.scrollable-content');
+                if (scrollableContent) {
+                    scrollableContent.addEventListener('touchstart', (e) => {
+                        // Only blur if NOT touching the input or dropdown
+                        const isTouchingInputOrDropdown = e.target === input ||
+                            input.contains(e.target) ||
+                            e.target === dropdown ||
+                            dropdown.contains(e.target) ||
+                            e.target.closest('.search-results-dropdown');
 
-                        // Keep panel expanded but restore normal middle position
-                        bottomSheet.style.height = '';  // Reset height to default 45vh
-                        bottomSheet.classList.add('expanded');  // Keep it at middle position
-                        bottomSheet.style.transform = '';  // Reset transform
-                        bottomSheet.style.overscrollBehavior = '';  // Allow normal scrolling
-
-                        // Reset padding and scroll
-                        if (scrollableContent) {
-                            scrollableContent.style.paddingTop = ''; // Remove injected padding
-                            scrollableContent.scrollTop = 0;  // Reset to top for consistency
+                        if (document.activeElement === input && !isTouchingInputOrDropdown) {
+                            input.blur();
                         }
-                    }, 100);
+                    }, { passive: true });
                 }
-            });
+
+                // Also blur when touching the sheet handle to drag
+                const handle = document.querySelector('.handle');
+                if (handle) {
+                    handle.addEventListener('touchstart', () => {
+                        if (document.activeElement === input) {
+                            input.blur();
+                        }
+                    }, { passive: true });
+                }
+
+                // Restore normal behavior on blur
+                input.addEventListener('blur', () => {
+                    if (window.innerWidth < 768) {
+                        setTimeout(() => {
+                            const scrollableContent = sheetContent.querySelector('.scrollable-content');
+
+                            // Keep panel expanded but restore normal middle position
+                            bottomSheet.style.height = '';  // Reset height to default 45vh
+                            bottomSheet.classList.add('expanded');  // Keep it at middle position
+                            bottomSheet.style.transform = '';  // Reset transform
+                            bottomSheet.style.overscrollBehavior = '';  // Allow normal scrolling
+
+                            // Reset scroll
+                            if (scrollableContent) {
+                                scrollableContent.scrollTop = 0;  // Reset to top for consistency
+                            }
+                        }, 100);
+                    }
+                });
+            }
 
             input.addEventListener('input', (e) => {
                 const query = e.target.value.toLowerCase().trim();
