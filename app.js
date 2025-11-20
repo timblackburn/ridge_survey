@@ -1498,7 +1498,7 @@ function buildDecadeListPanel() {
         listHtml = '<p>No decade data available.</p>';
     } else {
         listHtml = `<ul class="item-list">${decadeKeys.map(decade => {
-            const color = stringToColor(decade);
+            const color = getDecadeColor(decade);
             const highlightKey = `survey/decade:${decade}`;
             highlightFeatureCache[highlightKey] = decadeGroups[decade];
 
@@ -2970,7 +2970,7 @@ function updateSurveyLayer(mode, filterValue = null) {
             const decade = feature.properties.decade;
             if (decade) {
                 return {
-                    fillColor: stringToColor(decade), fillOpacity: 0.6,
+                    fillColor: getDecadeColor(decade), fillOpacity: 0.6,
                     color: '#000000', weight: 1, opacity: 0.5
                 };
             }
@@ -3365,6 +3365,23 @@ function stringToColor(str) {
     const finalHue = (scaledHue > 40) ? scaledHue + 120 : scaledHue;
 
     return `hsl(${finalHue}, 80%, 60%)`;
+}
+
+/**
+ * Returns a distinct color for a given decade.
+ */
+function getDecadeColor(decade) {
+    if (!decade) return '#CCCCCC';
+    const d = decade.toLowerCase();
+    if (d.includes('1870')) return '#8E24AA'; // Purple
+    if (d.includes('1880')) return '#D81B60'; // Pink
+    if (d.includes('1890')) return '#E53935'; // Red
+    if (d.includes('1900')) return '#FB8C00'; // Orange
+    if (d.includes('1910')) return '#FDD835'; // Yellow
+    if (d.includes('1920')) return '#43A047'; // Green
+    if (d.includes('1930')) return '#00897B'; // Teal
+    if (d.includes('1940')) return '#1E88E5'; // Blue
+    return stringToColor(decade); // Fallback
 }
 
 /**
