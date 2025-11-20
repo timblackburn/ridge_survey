@@ -2738,27 +2738,34 @@ function showDefaultPanel() {
 
                     // Use requestAnimationFrame to ensure DOM is settled
                     requestAnimationFrame(() => {
-                        // Increased from 100 to 200 to lower the search bar position
-                        const targetScrollPosition = 200;
+                        const adjustScroll = () => {
+                            if (!scrollableContent) return;
 
-                        // Set scroll position
-                        if (scrollableContent) {
-                            scrollableContent.scrollTop = targetScrollPosition;
-                        }
+                            // Calculate target position (approx 38% down the screen)
+                            // This puts it in a comfortable spot above the keyboard
+                            const targetScreenPos = window.innerHeight * 0.38;
 
-                        // Force scroll position again after a short delay to override any browser scrolling
-                        setTimeout(() => {
-                            if (scrollableContent) {
-                                scrollableContent.scrollTop = targetScrollPosition;
-                            }
-                        }, 50);
+                            // Get current position
+                            const inputRect = input.getBoundingClientRect();
+                            const currentScreenPos = inputRect.top;
 
-                        // One more time to be absolutely sure
-                        setTimeout(() => {
-                            if (scrollableContent) {
-                                scrollableContent.scrollTop = targetScrollPosition;
-                            }
-                        }, 150);
+                            // Calculate difference and adjust scroll
+                            // If current is 500 and target is 200, we need to scroll DOWN (add to scrollTop) by 300
+                            // If current is 100 and target is 200, we need to scroll UP (subtract from scrollTop) by 100
+                            const diff = currentScreenPos - targetScreenPos;
+
+                            // Apply adjustment
+                            scrollableContent.scrollTop += diff;
+                        };
+
+                        // Run adjustment immediately
+                        adjustScroll();
+
+                        // Run again after a short delay to handle layout shifts/keyboard animation
+                        setTimeout(adjustScroll, 50);
+
+                        // And one more time to be sure
+                        setTimeout(adjustScroll, 200);
                     });
                 }
             });
