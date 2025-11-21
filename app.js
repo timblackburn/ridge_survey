@@ -137,6 +137,17 @@ let isDataLoaded = false;
 let currentDropdownResults = []; // For "Enter" key logic
 let appHistory = []; // For custom history tracking
 
+// Google Analytics / GTM tracking helper
+function trackEvent(eventName, eventParams = {}) {
+    if (typeof window.dataLayer !== 'undefined') {
+        window.dataLayer.push({
+            'event': eventName,
+            ...eventParams
+        });
+    }
+}
+
+
 // This is the config object you can edit
 const districtConfig = {
     "Ridge Historic District": { color: "#E63946" }, // Red
@@ -329,6 +340,10 @@ async function loadDataSources() {
             onEachFeature: (feature, layer) => {
                 layer.on('click', (e) => {
                     L.DomEvent.stopPropagation(e);
+                    trackEvent('map_feature_click', {
+                        property_id: feature.properties.BLDG_ID,
+                        color_code: feature.properties.CHRS_Rating || 'N/A'
+                    });
                     window.location.hash = `#property/${feature.properties.BLDG_ID}`;
                 });
             },
@@ -489,6 +504,12 @@ function setupEventListeners() {
             const navContainers = document.querySelectorAll('.property-nav, .desktop-nav-float');
             navContainers.forEach(nav => {
                 nav.style.display = isMapFollowEnabled ? 'none' : '';
+            });
+
+            // Track Follow Map toggle
+            trackEvent('follow_map_toggle', {
+                action: isMapFollowEnabled ? 'enabled' : 'disabled',
+                current_route: window.location.hash || '/'
             });
 
             // Refresh the current panel content without changing map view.
@@ -923,6 +944,21 @@ function handleHashChange() {
         if (appHistory.length > 300) {
             appHistory.shift();
         }
+
+        // Track route change in Google Analytics
+        let pagePath = hash || '/';
+        let pageTitle = hash || 'Home';
+
+        // Sanitize search hashes to remove PII (search terms)
+        if (pagePath.startsWith('#search/')) {
+            pagePath = '#search';
+            pageTitle = 'Search Results';
+        }
+
+        trackEvent('page_view', {
+            page_path: pagePath,
+            page_title: pageTitle
+        });
     }
 
     // Determine previous hash (if any) so we can preserve district context
@@ -1484,6 +1520,13 @@ function buildSearchPanel(query, results) {
     // Update global navigation list
     currentNavigationList = filteredResults;
 
+    // Track search in Google Analytics
+    // Track search in Google Analytics
+    trackEvent('search', {
+        // search_term removed for privacy
+        results_count: filteredResults.length
+    });
+
     let listHtml = filteredResults.length === 0 ? '<p>No matching properties found.</p>' :
         `<ul class="item-list">${filteredResults.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('')}</ul>`;
 
@@ -1985,6 +2028,12 @@ function buildStyleDetailPanel(style) {
 
 function buildDistrictDetailsPanel(districtFeature) {
     const districtName = districtFeature.properties.NAME;
+
+    // Track district view in Google Analytics
+    trackEvent('view_district', {
+        district_name: districtName
+    });
+
     clearHighlight();
     const districtGeom = districtFeature.geometry;
 
@@ -2145,11 +2194,11 @@ const districtContent = {
         title: 'Ridge Historic District',
         body: `
             <h4>About this District</h4>
-            <p>The Ridge Historic District is one of Chicago's largest historic districts, encompassing a significant collection of residential architecture from the late 19th and early 20th centuries.</p>
+            <p><b style="color: red;">This text copy is temporary/sample and will be replaced.</b> The Ridge Historic District is one of Chicago's largest historic districts, encompassing a significant collection of residential architecture from the late 19th and early 20th centuries.</p>
             <h4>Tax Incentives</h4>
-            <p>Properties within this district may be eligible for the <strong>Property Tax Assessment Freeze Program</strong>. This program freezes the assessed value of the property for 8-12 years if the owner undertakes a substantial rehabilitation.</p>
+            <p><b style="color: red;">This text copy is temporary/sample and will be replaced. </b>Properties within this district may be eligible for the <strong>Property Tax Assessment Freeze Program</strong>. This program freezes the assessed value of the property for 8-12 years if the owner undertakes a substantial rehabilitation.</p>
             <h4>Permit Requirements</h4>
-            <p>Exterior work visible from the public right-of-way requires review by the Commission on Chicago Landmarks. This ensures that alterations maintain the historic character of the district.</p>
+            <p><b style="color: red;">This text copy is temporary/sample and will be replaced. </b>Exterior work visible from the public right-of-way requires review by the Commission on Chicago Landmarks. This ensures that alterations maintain the historic character of the district.</p>
             <p><a href="https://www.chicago.gov/city/en/depts/dcd/supp_info/landmarks/ridge_historic_district.html" target="_blank">Official City Page &rarr;</a></p>
         `
     },
@@ -2157,14 +2206,14 @@ const districtContent = {
         title: 'Brainerd Bungalow Historic District',
         body: `
             <h4>About this District</h4>
-            <p>This district is a fine example of the "Chicago Bungalow" style that dominated residential construction in the early 20th century.</p>
+            <p><b style="color: red;">This text copy is temporary/sample and will be replaced. </b>This district is a fine example of the "Chicago Bungalow" style that dominated residential construction in the early 20th century.</p>
             <h4>Historic Chicago Bungalow Association</h4> `
     },
     'Longwood Drive': {
         title: 'Longwood Drive Historic District',
         body: `
             <h4>About this District</h4>
-            <p>Known for its grand estate homes situated on the ridge, Longwood Drive features unique topography and high-style architecture.</p>
+            <p><b style="color: red;">This text copy is temporary/sample and will be replaced.</b> Known for its grand estate homes situated on the ridge, Longwood Drive features unique topography and high-style architecture.</p>
             <h4>Landmark Status</h4>
             <p>As a designated Chicago Landmark district, all exterior permits are reviewed by the Landmarks Commission.</p>
         `
@@ -2173,21 +2222,21 @@ const districtContent = {
         title: 'Walter Burley Griffin Place',
         body: `
             <h4>About this District</h4>
-            <p>This district includes unique collection of Prairie School homes designed by Walter Burley Griffin, a contemporary of Frank Lloyd Wright.</p>
+            <p><b style="color: red;">This text copy is temporary/sample and will be replaced.</b> This district includes unique collection of Prairie School homes designed by Walter Burley Griffin, a contemporary of Frank Lloyd Wright.</p>
         `
     },
     'Beverly/Morgan Park Railroad Station': {
         title: 'Railroad Station District',
         body: `
             <h4>About this District</h4>
-            <p>This district protects the historic Rock Island commuter rail stations that were vital to the development of the Beverly Hills and Morgan Park communities.</p>
+            <p><b style="color: red;">This text copy is temporary/sample and will be replaced.</b> This district protects the historic Rock Island commuter rail stations that were vital to the development of the Beverly Hills and Morgan Park communities.</p>
         `
     },
     'Individual Landmark': {
         title: 'Individual Chicago Landmark',
         body: `
             <h4>Landmark Status</h4>
-            <p>This property is individually designated as a Chicago Landmark. It possesses significant historical or architectural value.</p>
+            <p><b style="color: red;">This text copy is temporary/sample and will be replaced.</b> This property is individually designated as a Chicago Landmark. It possesses significant historical or architectural value.</p>
             <h4>Requirements</h4>
             <p>Any work affecting the exterior (and sometimes interior features) requires a permit review by the Historic Preservation department and potentiall the Commission on Chicago Landmarks.</p>
         `
@@ -2196,7 +2245,7 @@ const districtContent = {
         title: 'Chicago Historic Resources Survey (CHRS)',
         body: `
             <h4>About the Survey</h4>
-            <p>Completed in 1996, the Chicago Historic Resources Survey (CHRS) identified approximately 17,000 properties of historical or architectural importance.</p>
+            <p><b style="color: red;">This text copy is temporary/sample and will be replaced.</b> Completed in 1996, the Chicago Historic Resources Survey (CHRS) identified approximately 17,000 properties of historical or architectural importance.</p>
             <h4>Significance</h4>
             <p>The survey is a research and planning tool. Inclusion in the CHRS does not automatically designate a building as a Chicago Landmark, but properties rated "Red" or "Orange" are subject to a demolition delay ordinance (up to 90 days) to explore preservation options.</p>
             <p><a href="https://webapps1.chicago.gov/landmarksweb/web/historicsurvey.htm" target="_blank">Learn more &rarr;</a></p>
@@ -2206,7 +2255,7 @@ const districtContent = {
         title: 'CHRS Color Codes',
         body: `
             <h4>Understanding the Colors</h4>
-            <p>The survey assigned a color code to each property reflecting its significance relative to others in the survey.</p>
+            <p><b style="color: red;">This text copy is temporary/sample and will be replaced.</b>  The survey assigned a color code to each property reflecting its significance relative to others in the survey.</p>
             <ul style="list-style: none; padding: 0;">
                 <li style="margin-bottom: 10px;"><strong style="color: #FF0000;">Red</strong>: Significant in the broader context of the City of Chicago, the State of Illinois, or the United States of America.</li>
                 <li style="margin-bottom: 10px;"><strong style="color: #FFA500;">Orange</strong>: Significant in the context of the surrounding community.</li>
@@ -2236,6 +2285,11 @@ function openModal(key, contentOverride = null) {
     modalTitle.textContent = content.title;
     modalBody.innerHTML = content.body;
     modalOverlay.classList.add('active');
+
+    // Track modal open in Google Analytics
+    trackEvent('open_modal', {
+        modal_title: content.title
+    });
 }
 
 function closeModal() {
@@ -2725,6 +2779,15 @@ function buildPropertyCard(props) {
         try {
             console.log('[DEBUG] Selecting property', props.BLDG_ID, props);
             window._propertySelectStart = Date.now();
+
+            // Track property view in Google Analytics
+            trackEvent('view_property', {
+                property_id: props.BLDG_ID,
+                // address removed for privacy
+                district_name: findDistrictNameForProperty(props.BLDG_ID) || 'None',
+                has_landmark_status: props.individual_landmark === 'Y' || props.individual_landmark === 'YES',
+                color_code: props.CHRS_Rating || 'N/A'
+            });
         } catch (e) { }
         const address = formatAddress(props);
         const val = (field) => field || 'N/A';
@@ -4031,6 +4094,7 @@ function preprocessSurveyData() {
  */
 function handleLocationClick() {
     if (locationMode === 'off' || locationMode === 'error') {
+        trackEvent('location_button', { action: 'enable' });
         map.locate({
             watch: true,
             setView: true,
@@ -4038,6 +4102,7 @@ function handleLocationClick() {
         });
         setLocationMode('following');
     } else {
+        trackEvent('location_button', { action: 'disable' });
         disableLocation();
     }
 }
