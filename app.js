@@ -326,7 +326,8 @@ async function loadDataSources() {
 
         baseSurveyLayer = L.geoJSON(surveyData, {
             onEachFeature: (feature, layer) => {
-                layer.on('click', () => {
+                layer.on('click', (e) => {
+                    L.DomEvent.stopPropagation(e);
                     window.location.hash = `#property/${feature.properties.BLDG_ID}`;
                 });
             },
@@ -427,7 +428,16 @@ function setupEventListeners() {
         // so the user remains in that district view even if they click
         // the map away from buildings.
         const currentHash = window.location.hash || '';
-        if (activeDistrictContext || currentHash.startsWith('#district/') || selectedDistrictLayer) return;
+        // Ignore map clicks if we are in a specific context that should be preserved
+        if (activeDistrictContext ||
+            currentHash.startsWith('#district/') ||
+            selectedDistrictLayer ||
+            currentHash.startsWith('#survey') ||
+            currentHash === '#landmarks' ||
+            currentHash === '#districts' ||
+            currentHash.startsWith('#search/') ||
+            currentHash.startsWith('#property/')
+        ) return;
         if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
         clickTimer = setTimeout(() => {
             // Only navigate back to home if the click was on the bare map
