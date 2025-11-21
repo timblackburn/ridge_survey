@@ -122,8 +122,8 @@ function maybePersistPerfStats() {
 let mapMoveTimer = null;
 
 // Tracks the "Follow map" toggle state
-let isMapFollowEnabled = false;
-
+let isMapFollowEnabled = false; // State for "Follow map" toggle
+let currentNavigationList = []; // Stores the current list of features for next/prev navigation
 // Tracks the location button state
 let locationMode = 'off'; // 'off', 'following', 'error'
 
@@ -483,6 +483,13 @@ function setupEventListeners() {
         if (e.target.id === 'follow-map-toggle') {
             isMapFollowEnabled = !isMapFollowEnabled;
             console.debug('[DEBUG] follow-map toggled, now:', isMapFollowEnabled);
+
+            // Immediately hide/show navigation buttons in property cards
+            const navContainers = document.querySelectorAll('.property-nav, .desktop-nav-float');
+            navContainers.forEach(nav => {
+                nav.style.display = isMapFollowEnabled ? 'none' : '';
+            });
+
             // Refresh the current panel content without changing map view.
             refreshPanel();
         }
@@ -1340,6 +1347,10 @@ function buildLandmarksPanel() {
     filteredLandmarks.sort(propertySort);
     filteredContributing.sort(propertySort);
 
+    // Update global navigation list
+    // Combine both lists in the order they appear in the UI
+    currentNavigationList = [...filteredLandmarks, ...filteredContributing];
+
     // Helper to generate list HTML
     const generateList = (items) => {
         if (items.length === 0) return '<p style="padding: 0 20px; color: #666; font-style: italic;">No properties found in this view.</p>';
@@ -1454,6 +1465,9 @@ function buildSearchPanel(query, results) {
     }
 
     filteredResults.sort(propertySort);
+
+    // Update global navigation list
+    currentNavigationList = filteredResults;
 
     let listHtml = filteredResults.length === 0 ? '<p>No matching properties found.</p>' :
         `<ul class="item-list">${filteredResults.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('')}</ul>`;
@@ -1791,6 +1805,9 @@ function buildColorCodeDetailPanel(color) {
     }
 
     filteredFeatures.sort(propertySort);
+
+    // Update global navigation list
+    currentNavigationList = filteredFeatures;
     let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('');
 
     const highlightKey = `survey/color:${color}`;
@@ -1820,6 +1837,9 @@ function buildDecadeDetailPanel(decade) {
     }
 
     filteredFeatures.sort(propertySort);
+
+    // Update global navigation list
+    currentNavigationList = filteredFeatures;
     let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('');
 
     const highlightKey = `survey/decade:${decade}`;
@@ -1849,6 +1869,9 @@ function buildArchitectDetailPanel(architect) {
     }
 
     filteredFeatures.sort(propertySort);
+
+    // Update global navigation list
+    currentNavigationList = filteredFeatures;
     let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('');
 
     const highlightKey = `survey/architect:${architect}`;
@@ -1878,6 +1901,9 @@ function buildStyleDetailPanel(style) {
     }
 
     filteredFeatures.sort(propertySort);
+
+    // Update global navigation list
+    currentNavigationList = filteredFeatures;
     let listHtml = filteredFeatures.map(f => `<li data-id="${f.properties.BLDG_ID}"><a>${formatListItem(f.properties)}</a></li>`).join('');
 
     const highlightKey = `survey/style:${style}`;
@@ -1970,6 +1996,9 @@ function buildDistrictDetailsPanel(districtFeature) {
     }
 
     filteredProperties.sort(propertySort);
+
+    // Update global navigation list
+    currentNavigationList = filteredProperties;
 
     // *** FIX: Jump to Street Logic ***
     const districtsWithJump = ['Ridge Historic District', 'Brainerd Bungalow Historic District'];
@@ -2382,13 +2411,42 @@ function updateSheetContent(address, props, imageHtml) {
         `<div style="color: #888; font-size: 0.9em; font-weight: 400;" title="${buildingNameSource || 'Source unknown'}">${buildingName}</div>`
         : '';
 
+    // Determine navigation state
+    let navHtml = '';
+    let prevId = null;
+    let nextId = null;
+
+    if (!isMapFollowEnabled && currentNavigationList && currentNavigationList.length > 0) {
+        const currentIndex = currentNavigationList.findIndex(f => f.properties.BLDG_ID === props.BLDG_ID);
+        if (currentIndex !== -1) {
+            const total = currentNavigationList.length;
+            const displayIndex = currentIndex + 1;
+
+            // Circular navigation or bounded? Usually bounded is better for lists.
+            // Let's do bounded for now.
+            if (currentIndex > 0) prevId = currentNavigationList[currentIndex - 1].properties.BLDG_ID;
+            if (currentIndex < total - 1) nextId = currentNavigationList[currentIndex + 1].properties.BLDG_ID;
+
+            // Use CSS classes instead of inline styles
+            navHtml = `
+            <div class="property-nav">
+                <button class="nav-btn prev-property" ${prevId ? `data-id="${prevId}"` : 'disabled'}>&larr;</button>
+                <span style="font-size: 0.9em; color: #666; font-weight: 500; min-width: 40px; text-align: center;">${displayIndex}/${total}</span>
+                <button class="nav-btn next-property" ${nextId ? `data-id="${nextId}"` : 'disabled'}>&rarr;</button>
+            </div>`;
+        }
+    }
+
+    const isDesktop = window.innerWidth >= 768;
+
     targetContent.innerHTML = `
-        <div class="sheet-header" style="padding: 15px 20px; display: flex; align-items: flex-start;">
+        <div class="sheet-header property-sheet-header">
             <button class="close-property-button" style="position: static; margin-right: 15px; flex-shrink: 0;">&times;</button>
             <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
                 <h3 style="margin: 0; line-height: 1.2;">${address}</h3>
                 ${buildingNameHtml}
             </div>
+            ${!isDesktop ? navHtml : ''}
         </div>
         <div class="scrollable-content">
             ${imageHtml}
@@ -2437,9 +2495,30 @@ function updateSheetContent(address, props, imageHtml) {
                 <br><br>
             </div>
         </div>
+        ${isDesktop && navHtml ? `<div class="desktop-nav-float">${navHtml}</div>` : ''}
     `;
 
     // Attach Event Listeners
+
+    // 0. Navigation Buttons
+    const prevBtn = targetContent.querySelector('.prev-property');
+    const nextBtn = targetContent.querySelector('.next-property');
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = e.currentTarget.dataset.id;
+            if (id) window.location.hash = `#property/${id}`;
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = e.currentTarget.dataset.id;
+            if (id) window.location.hash = `#property/${id}`;
+        });
+    }
 
     // 1. Close Button
     // 1. Close Button

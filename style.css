@@ -646,6 +646,56 @@ html {
     z-index: 10;
 }
 
+/* Custom header for property view to handle alignment differences */
+.property-sheet-header {
+    padding: 0 20px 15px 20px;
+    display: flex;
+    align-items: flex-start;
+    /* Mobile: Pull it up slightly to match other headers better */
+    margin-top: -5px;
+}
+
+@media (min-width: 768px) {
+    .property-sheet-header {
+        padding: 15px 20px;
+        margin-top: 0;
+    }
+}
+
+.property-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 10px;
+}
+
+.nav-btn {
+    background: none;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2em;
+    color: #555;
+    transition: all 0.2s;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background-color: #f0f0f0;
+    border-color: #bbb;
+}
+
+.nav-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+    border-color: #eee;
+    color: #ccc;
+}
+
 .close-property-button:hover {
     background-color: #e0e0e0;
     color: #000;
@@ -765,6 +815,21 @@ html {
         display: flex;
         flex-direction: column;
         background-color: #ffffff;
+        position: relative;
+        /* For floating nav */
+    }
+
+    /* Desktop floating nav */
+    .desktop-nav-float {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 3000;
+        background-color: white;
+        padding: 5px 10px;
+        border-radius: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        border: 1px solid #eee;
     }
 
     /* 3. Hide the mobile handle */
