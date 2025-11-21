@@ -125,6 +125,7 @@ let mapMoveTimer = null;
 let isMapFollowEnabled = false; // State for "Follow map" toggle
 let currentNavigationList = []; // Stores the current list of features for next/prev navigation
 let savedScrollPositions = {}; // Stores scroll positions for list panels by route hash
+let cachedImageDimensions = null; // Caches property image dimensions to prevent content jumping
 // Tracks the location button state
 let locationMode = 'off'; // 'off', 'following', 'error'
 
@@ -2310,6 +2311,41 @@ if (modalCloseBtn) {
     });
 }
 
+/* ============================================================
+   KEYBOARD NAVIGATION FOR PROPERTIES
+   ============================================================ */
+// Global keyboard navigation for property listings
+document.addEventListener('keydown', (e) => {
+    // Only handle arrow keys when not typing in an input field
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+
+    // Check if property view is active (either mobile or desktop)
+    const isPropertyViewActive =
+        (bottomSheet && bottomSheet.classList.contains('property-view-active')) ||
+        (rightSheet && rightSheet.classList.contains('property-view-active'));
+
+    if (!isPropertyViewActive) {
+        return;
+    }
+
+    // Handle left/right arrow keys
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        // Find the navigation buttons
+        const prevBtn = document.querySelector('.prev-property:not([disabled])');
+        const nextBtn = document.querySelector('.next-property:not([disabled])');
+
+        if (e.key === 'ArrowLeft' && prevBtn) {
+            e.preventDefault(); // Prevent page scrolling
+            prevBtn.click();
+        } else if (e.key === 'ArrowRight' && nextBtn) {
+            e.preventDefault(); // Prevent page scrolling
+            nextBtn.click();
+        }
+    }
+});
+
 // Global function to open style modal with description and images
 window.openStyleModal = function (styleName) {
     if (window.buildingStyles && window.buildingStyles[styleName]) {
@@ -2796,8 +2832,41 @@ function buildPropertyCard(props) {
             const t1 = Date.now();
             console.log('[DEBUG] Rendering property card for', props.BLDG_ID, 'at', t1, 'elapsed since select:', t1 - window._propertySelectStart, 'ms');
         } catch (e) { }
-        // Immediately render the card without the image.
-        updateSheetContent(address, props, '');
+
+        // Create placeholder image HTML
+        // Use cached aspect ratio if available, otherwise default to 3:2 (0.66)
+        const aspectRatio = (cachedImageDimensions && cachedImageDimensions.aspectRatio)
+            ? cachedImageDimensions.aspectRatio
+            : 0.666; // Default to 3:2 landscape
+
+        const paddingTop = (aspectRatio * 100).toFixed(2);
+
+        // We use the SAME structure for placeholder and final image to prevent jumps
+        // The container uses padding-top to enforce aspect ratio
+        const placeholderImageHtml = `
+            <div class="property-image">
+                <div class="aspect-ratio-container" style="position: relative; width: 100%; padding-top: ${paddingTop}%; background-color: #f5f5f5; border-radius: 8px; overflow: hidden;">
+                    <div class="placeholder-content" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                        <div style="color: #999; font-size: 14px; font-weight: 500;">Loading...</div>
+                    </div>
+                </div>
+            </div>`;
+
+        // Immediately render the card with placeholder
+        updateSheetContent(address, props, placeholderImageHtml);
+
+        // Helper to update placeholder text
+        const setNoImage = () => {
+            const targetContent = (window.innerWidth >= 768 && rightSheetContent) ? rightSheetContent : sheetContent;
+            const imageContainer = targetContent.querySelector('.property-image');
+            if (imageContainer) {
+                const placeholderContent = imageContainer.querySelector('.placeholder-content');
+                if (placeholderContent) {
+                    placeholderContent.innerHTML = '<div style="color: #bbb;">No image available</div>';
+                }
+            }
+        };
+
         // Asynchronously try to load the image.
         try {
             const rawPin = props.PIN ? String(props.PIN) : null;
@@ -2808,38 +2877,74 @@ function buildPropertyCard(props) {
                     const imgUrl = `https://maps.cookcountyil.gov/groundphotos/${paddedPin}`;
                     const tempImg = new Image();
                     tempImg.src = imgUrl;
+
                     // DEBUG: Log before image load starts
                     try {
                         const t2 = Date.now();
                         console.log('[DEBUG] Starting image load for', props.BLDG_ID, imgUrl, 'at', t2, 'elapsed since select:', t2 - window._propertySelectStart, 'ms');
                     } catch (e) { }
+
                     tempImg.onload = () => {
-                        // If the image loads, create the image HTML and re-render the sheet content.
-                        if (window.hideTooltip) window.hideTooltip(); // Clear again in case hover happened during load
+                        if (window.hideTooltip) window.hideTooltip();
+
                         try {
                             const t3 = Date.now();
                             console.log('[DEBUG] Image loaded for', props.BLDG_ID, 'at', t3, 'elapsed since select:', t3 - window._propertySelectStart, 'ms');
                         } catch (e) { }
-                        const imageHtml = `
-                            <div class="property-image">
-                                <a href="${imgUrl}" target="_blank" rel="noopener">
-                                    <img src="${imgUrl}" alt="Ground photo for ${address}" loading="lazy" decoding="async" />
-                                </a>
-                            </div>`;
-                        updateSheetContent(address, props, imageHtml);
+
+                        // Cache the aspect ratio (height/width) for next time
+                        if (tempImg.naturalWidth && tempImg.naturalHeight) {
+                            cachedImageDimensions = {
+                                aspectRatio: tempImg.naturalHeight / tempImg.naturalWidth
+                            };
+                        }
+
+                        // Find the container
+                        const targetContent = (window.innerWidth >= 768 && rightSheetContent) ? rightSheetContent : sheetContent;
+                        const imageContainer = targetContent.querySelector('.property-image');
+
+                        if (imageContainer) {
+                            // We replace the INNER content of the aspect-ratio-container
+                            // This keeps the container height fixed (no jump)
+                            // If the new image has a different aspect ratio, we update the padding-top
+                            // But since we cached it, it should match. If it doesn't (first load), it might jump slightly,
+                            // but using the container wrapper minimizes the visual impact.
+
+                            const aspectRatioContainer = imageContainer.querySelector('.aspect-ratio-container');
+                            if (aspectRatioContainer) {
+                                // Update aspect ratio if we have new dimensions (to match the actual image perfectly)
+                                if (tempImg.naturalWidth && tempImg.naturalHeight) {
+                                    const newAspectRatio = tempImg.naturalHeight / tempImg.naturalWidth;
+                                    aspectRatioContainer.style.paddingTop = `${(newAspectRatio * 100).toFixed(2)}%`;
+                                }
+
+                                aspectRatioContainer.innerHTML = `
+                                    <a href="${imgUrl}" target="_blank" rel="noopener" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                                        <img src="${imgUrl}" alt="Ground photo for ${address}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy" decoding="async" />
+                                    </a>`;
+                            }
+                        }
                     };
+
                     tempImg.onerror = () => {
-                        // If the image fails to load, do nothing. The card is already displayed without it.
                         try {
                             const t4 = Date.now();
                             console.log('[DEBUG] Image failed to load for', props.BLDG_ID, 'at', t4, 'elapsed since select:', t4 - window._propertySelectStart, 'ms');
                         } catch (e) { }
                         console.debug('Image failed to load:', imgUrl);
+                        setNoImage();
                     };
+                } else {
+                    // PIN exists but is empty after cleaning
+                    setNoImage();
                 }
+            } else {
+                // No PIN property
+                setNoImage();
             }
         } catch (e) {
             console.debug('Could not build property image URL from PIN', e);
+            setNoImage();
         }
     } catch (err) {
         console.error('[DEBUG] Error in buildPropertyCard', err);
