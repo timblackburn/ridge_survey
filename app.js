@@ -2219,7 +2219,7 @@ window.openStyleModal = function (styleName) {
 
             if (examples.length > 0) {
                 content += '<div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">';
-                content += '<h4 style="margin-bottom: 15px; color: #444;">Examples in Survey</h4>';
+                content += '<h4 style="margin-bottom: 15px; color: #444;">Examples in Chicago Historic Resources Survey</h4>';
                 examples.forEach(f => {
                     const addr = formatAddress(f.properties);
                     const year = f.properties.CHRS_Built_Date || f.properties.YEAR_BUILT || 'Unknown Year';
@@ -2722,7 +2722,7 @@ function showDefaultPanel() {
             
             <div style="margin-top: 10px; margin-bottom: 0; position: relative;" id="welcome-search-container">
                 <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: #666; pointer-events: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                <input type="text" id="welcome-search-input" placeholder="Search address..." style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
+                <input type="text" id="welcome-search-input" placeholder="Search address..." autocomplete="off" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
                 <div id="welcome-search-results" class="search-results-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
             </div>
         </div>
@@ -2742,17 +2742,18 @@ function showDefaultPanel() {
 
             if (input) {
                 // Handle search input
+                let debounceTimeout;
                 input.addEventListener('input', (e) => {
-                    const query = e.target.value;
-                    if (query.length > 0) {
-                        const results = surveyData.features.filter(f => {
-                            const address = formatAddress(f.properties).toLowerCase();
-                            return address.includes(query.toLowerCase());
-                        }).slice(0, 10); // Limit to 10
-                        showSearchDropdown(results, dropdown, input); // Assuming showSearchDropdown is adapted or a new one is created
-                    } else {
-                        dropdown.style.display = 'none';
-                    }
+                    clearTimeout(debounceTimeout);
+                    debounceTimeout = setTimeout(() => {
+                        const rawQuery = e.target.value;
+                        if (rawQuery.length > 0) {
+                            const results = searchFeatures(rawQuery);
+                            renderWelcomeSearchResults(results, dropdown, input);
+                        } else {
+                            dropdown.style.display = 'none';
+                        }
+                    }, 150);
                 });
 
                 // Expand panel on focus (mobile) so keyboard doesn't cover it
@@ -2890,12 +2891,7 @@ function showSearchDropdown(query) {
         return;
     }
 
-    const searchQuery = query.toLowerCase().trim();
-    const results = surveyData.features.filter(f => {
-        const address = formatAddress(f.properties).toLowerCase();
-        return address.includes(searchQuery);
-    }).slice(0, 5); // Show top 5 results
-
+    const results = searchFeatures(query);
     currentDropdownResults = results; // Store for "Enter" key logic
 
     if (results.length === 0) {
@@ -3200,6 +3196,115 @@ function formatAddress(props) {
     if (props.ST_NAME1) parts.push(props.ST_NAME1);
     if (props.ST_TYPE1) parts.push(props.ST_TYPE1);
     return parts.length > 0 ? parts.join(' ') : props.address || '';
+}
+
+/**
+ * Calculates Levenshtein distance between two strings
+ */
+function levenshteinDistance(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+
+    const matrix = [];
+
+    // increment along the first column of each row
+    for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+    }
+
+    // increment each column in the first row
+    for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+    }
+
+    // Fill in the rest of the matrix
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1, // substitution
+                    Math.min(
+                        matrix[i][j - 1] + 1, // insertion
+                        matrix[i - 1][j] + 1 // deletion
+                    )
+                );
+            }
+        }
+    }
+
+    return matrix[b.length][a.length];
+}
+
+/**
+ * Performs fuzzy search on survey features
+ */
+function searchFeatures(rawQuery) {
+    if (!rawQuery || rawQuery.length === 0) return [];
+    const query = normalizeSearchQuery(rawQuery);
+
+    const scored = surveyData.features.map(f => {
+        const addr = formatAddress(f.properties);
+        const normAddr = normalizeSearchQuery(addr);
+        let score = 100;
+
+        if (normAddr.includes(query)) {
+            score = 0; // Exact substring match
+            if (normAddr.startsWith(query)) score = -1; // Prefix match bonus
+        } else {
+            // Fuzzy match against prefix
+            const prefix = normAddr.substring(0, query.length);
+            const dist = levenshteinDistance(query, prefix);
+            if (dist <= 3) score = dist;
+        }
+        return { feature: f, score };
+    });
+
+    return scored
+        .filter(item => item.score < 10)
+        .sort((a, b) => a.score - b.score)
+        .slice(0, 10)
+        .map(item => item.feature);
+}
+
+/**
+ * Normalizes search query by handling abbreviations and punctuation.
+ */
+function normalizeSearchQuery(query) {
+    if (!query) return '';
+    let q = query.toUpperCase().trim();
+
+    // Remove periods (e.g. "St." -> "St", "W." -> "W")
+    q = q.replace(/\./g, '');
+
+    // Remove ordinal suffixes (e.g. "1st" -> "1", "108th" -> "108")
+    // This ensures "108th" matches "108" in the database
+    q = q.replace(/(\d+)(ST|ND|RD|TH)\b/g, '$1');
+
+    // Replace full words with abbreviations
+    const replacements = {
+        'STREET': 'ST',
+        'AVENUE': 'AVE',
+        'BOULEVARD': 'BLVD',
+        'PLACE': 'PL',
+        'ROAD': 'RD',
+        'DRIVE': 'DR',
+        'LANE': 'LN',
+        'COURT': 'CT',
+        'TERRACE': 'TER',
+        'NORTH': 'N',
+        'SOUTH': 'S',
+        'EAST': 'E',
+        'WEST': 'W'
+    };
+
+    // Replace whole words only
+    for (const [full, abbr] of Object.entries(replacements)) {
+        q = q.replace(new RegExp(`\\b${full}\\b`, 'g'), abbr);
+    }
+
+    return q;
 }
 
 /**
@@ -3770,12 +3875,21 @@ function preprocessSurveyData() {
         // Precompute centroids (lat/lng) once so getFeaturesInView can be
         // fast and avoid calling turf.centroid repeatedly on map moves.
         try {
-            const c = iCentroid(f);
-            if (c && c.geometry && c.geometry.coordinates) {
+            // Use pre-calculated centroids if available
+            if (props.Centroid_X !== undefined && props.Centroid_Y !== undefined) {
                 f._centroid = {
-                    lng: c.geometry.coordinates[0],
-                    lat: c.geometry.coordinates[1]
+                    lng: Number(props.Centroid_X),
+                    lat: Number(props.Centroid_Y)
                 };
+            } else {
+                // Fallback to runtime calculation
+                const c = iCentroid(f);
+                if (c && c.geometry && c.geometry.coordinates) {
+                    f._centroid = {
+                        lng: c.geometry.coordinates[0],
+                        lat: c.geometry.coordinates[1]
+                    };
+                }
             }
         } catch (e) {
             // If centroid computation fails, leave _centroid undefined.
@@ -4015,4 +4129,33 @@ function navigateToPanel(panelHash) {
     } catch (e) {
         console.debug('navigateToPanel error', e);
     }
+}
+
+/**
+ * Renders search results for the welcome panel dropdown
+ */
+function renderWelcomeSearchResults(results, dropdown, input) {
+    if (!results || results.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+    }
+
+    const listHtml = results.map(f => {
+        const address = formatAddress(f.properties);
+        return `<div class="search-result-item" data-id="${f.properties.BLDG_ID}" style="padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 15px; color: #333;">${address}</div>`;
+    }).join('');
+
+    dropdown.innerHTML = listHtml;
+    dropdown.style.display = 'block';
+
+    // Add click listeners
+    dropdown.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent bubbling
+            const id = item.dataset.id;
+            attemptShowProperty(id);
+            dropdown.style.display = 'none';
+            input.value = '';
+        });
+    });
 }
