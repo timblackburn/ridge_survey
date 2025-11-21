@@ -670,8 +670,12 @@ function setupEventListeners() {
     map.on('moveend', () => {
         if (mapMoveTimer) { clearTimeout(mapMoveTimer); mapMoveTimer = null; }
         mapMoveTimer = setTimeout(() => {
-            // Allow follow-map to refresh panels even when a property is open.
-            if (isMapFollowEnabled && bottomSheet.classList.contains('expanded')) {
+            // Allow follow-map to refresh panels even when a property is open,
+            // but NOT when we're currently viewing a property route on mobile.
+            const currentHash = window.location.hash || '';
+            const isOnPropertyRoute = currentHash.startsWith('#property/');
+
+            if (isMapFollowEnabled && bottomSheet.classList.contains('expanded') && !isOnPropertyRoute) {
                 refreshPanel();
             }
             mapMoveTimer = null;
