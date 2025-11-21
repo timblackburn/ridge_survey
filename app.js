@@ -124,6 +124,7 @@ let mapMoveTimer = null;
 // Tracks the "Follow map" toggle state
 let isMapFollowEnabled = false; // State for "Follow map" toggle
 let currentNavigationList = []; // Stores the current list of features for next/prev navigation
+let savedScrollPositions = {}; // Stores scroll positions for list panels by route hash
 // Tracks the location button state
 let locationMode = 'off'; // 'off', 'following', 'error'
 
@@ -565,6 +566,15 @@ function setupEventListeners() {
         // List item clicks
         const li = e.target.closest('li');
         if (li) {
+            // Save scroll position before navigating to a property
+            if (li.dataset.id) {
+                const scrollableContent = bottomSheet.querySelector('.scrollable-content');
+                if (scrollableContent) {
+                    const currentHash = window.location.hash || '';
+                    savedScrollPositions[currentHash] = scrollableContent.scrollTop;
+                }
+            }
+
             if (li.dataset.name) window.location.hash = `#district/${encodeURIComponent(li.dataset.name)}`;
             if (li.dataset.id) attemptShowProperty(li.dataset.id);
             if (li.dataset.hash) window.location.hash = `#${li.dataset.hash}`;
@@ -1405,6 +1415,7 @@ function buildLandmarksPanel() {
         </div>
     `;
     toggleBottomSheet(true);
+    restoreScrollPosition();
 
     // Default highlight: Show both Chicago Landmarks AND Contributing Properties
     try { updateSurveyLayer('landmarks'); } catch (e) { console.debug('updateSurveyLayer(landmarks) failed', e); }
@@ -1486,6 +1497,7 @@ function buildSearchPanel(query, results) {
     `;
 
     toggleBottomSheet(true);
+    restoreScrollPosition();
 }
 
 // --- SURVEY SUB-PANELS ---
@@ -1828,6 +1840,7 @@ function buildColorCodeDetailPanel(color) {
         <div class="scrollable-content"><ul class="item-list">${listHtml}</ul></div>
     `;
     toggleBottomSheet(true);
+    restoreScrollPosition();
 }
 
 function buildDecadeDetailPanel(decade) {
@@ -1860,6 +1873,7 @@ function buildDecadeDetailPanel(decade) {
         <div class="scrollable-content"><ul class="item-list">${listHtml}</ul></div>
     `;
     toggleBottomSheet(true);
+    restoreScrollPosition();
 }
 
 function buildArchitectDetailPanel(architect) {
@@ -1892,6 +1906,7 @@ function buildArchitectDetailPanel(architect) {
         <div class="scrollable-content"><ul class="item-list">${listHtml}</ul></div>
     `;
     toggleBottomSheet(true);
+    restoreScrollPosition();
 }
 
 function buildStyleDetailPanel(style) {
@@ -1962,6 +1977,7 @@ function buildStyleDetailPanel(style) {
         ${footerHtmlDesktop}
     `;
     toggleBottomSheet(true);
+    restoreScrollPosition();
 }
 
 
@@ -2095,6 +2111,7 @@ function buildDistrictDetailsPanel(districtFeature) {
         <div class="scrollable-content">${listContentHtml}</div>
     `;
     toggleBottomSheet(true);
+    restoreScrollPosition();
 
     // Add Jump Listeners
     if (jumpBarHtml) {
@@ -3252,6 +3269,23 @@ function toggleBottomSheet(forceExpand = null) {
     // Tell Leaflet to resize the map after the CSS transition
     setTimeout(() => map.invalidateSize(), 300);
 }
+
+/**
+ * Restores the saved scroll position for the current route
+ */
+function restoreScrollPosition() {
+    const currentHash = window.location.hash || '';
+    if (savedScrollPositions[currentHash] !== undefined) {
+        const scrollableContent = bottomSheet.querySelector('.scrollable-content');
+        if (scrollableContent) {
+            // Use setTimeout to ensure the DOM is fully rendered
+            setTimeout(() => {
+                scrollableContent.scrollTop = savedScrollPositions[currentHash];
+            }, 50);
+        }
+    }
+}
+
 
 /**
  * Handles window resize to move pills between mobile/desktop containers
