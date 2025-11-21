@@ -2738,7 +2738,7 @@ function showDefaultPanel() {
         </div>
         
         <p style="font-size: 0.9em; color: #666; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">
-            <em>Created by Tim Blackburn. Brought to you by the Ridge Historical Society and Beverly Area Planning Association. (v0.7)</em>
+            <em>Created by Tim Blackburn for the the Ridge Historical Society. (v0.7)</em>
         </p>
     </div>
     `;
