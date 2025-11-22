@@ -2551,59 +2551,61 @@ function updateSheetContent(address, props, imageHtml) {
     const isDesktop = window.innerWidth >= 768;
 
     targetContent.innerHTML = `
-        <div class="sheet-header property-sheet-header">
-            <button class="close-property-button" style="position: static; margin-right: 15px; flex-shrink: 0;">&times;</button>
-            <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
-                <h3 style="margin: 0; line-height: 1.2;">${address}</h3>
-                ${buildingNameHtml}
-            </div>
-            ${!isDesktop ? navHtml : ''}
-        </div>
-        <div class="scrollable-content">
-            ${imageHtml}
-            <div class="property-card">
-                <div class="property-section">
-                    <h4>Historic Districts</h4>
-                    ${districtsHtml}
+        <div class="swipe-wrapper" style="width: 100%; min-height: 100%;">
+            <div class="sheet-header property-sheet-header">
+                <button class="close-property-button" style="position: static; margin-right: 15px; flex-shrink: 0;">&times;</button>
+                <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
+                    <h3 style="margin: 0; line-height: 1.2;">${address}</h3>
+                    ${buildingNameHtml}
                 </div>
+                ${!isDesktop ? navHtml : ''}
+            </div>
+            <div class="scrollable-content">
+                ${imageHtml}
+                <div class="property-card">
+                    <div class="property-section">
+                        <h4>Historic Districts</h4>
+                        ${districtsHtml}
+                    </div>
 
-                <div class="property-section">
-                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f0f0f0; margin-bottom: 15px; padding-bottom: 10px;">
-                        <h4 style="border: none; margin: 0; padding: 0;">Chicago Historic Resources Survey</h4>
-                        <button class="info-btn" data-district="CHRS">
-                            ${infoIcon} Info
+                    <div class="property-section">
+                        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f0f0f0; margin-bottom: 15px; padding-bottom: 10px;">
+                            <h4 style="border: none; margin: 0; padding: 0;">Chicago Historic Resources Survey</h4>
+                            <button class="info-btn" data-district="CHRS">
+                                ${infoIcon} Info
+                            </button>
+                        </div>
+                        ${chrsHtml}
+                    </div>
+
+                    <div class="property-section">
+                        <h4>Chicago city data</h4>
+                        ${cityHtml}
+                    </div>
+
+                    <p class="prop-note">* Note: Year built data should be verified with the <a href="https://researchguides.uic.edu/CBP" target="_blank">original building permit</a>.</p>
+                    
+                    <div style="margin-top: 20px; text-align: center;">
+                        <button id="view-report-btn" style="
+                            background-color: var(--primary); 
+                            color: white; 
+                            border: none; 
+                            padding: 12px 24px; 
+                            border-radius: 8px; 
+                            font-weight: 600; 
+                            cursor: pointer; 
+                            box-shadow: var(--shadow-md);
+                            transition: background-color 0.2s;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 8px;
+                        ">
+                            <svg style="width: 18px; height: 18px; fill: currentColor;" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                            View Full Report
                         </button>
                     </div>
-                    ${chrsHtml}
+                    <br><br>
                 </div>
-
-                <div class="property-section">
-                    <h4>Chicago city data</h4>
-                    ${cityHtml}
-                </div>
-
-                <p class="prop-note">* Note: Year built data should be verified with the <a href="https://researchguides.uic.edu/CBP" target="_blank">original building permit</a>.</p>
-                
-                <div style="margin-top: 20px; text-align: center;">
-                    <button id="view-report-btn" style="
-                        background-color: var(--primary); 
-                        color: white; 
-                        border: none; 
-                        padding: 12px 24px; 
-                        border-radius: 8px; 
-                        font-weight: 600; 
-                        cursor: pointer; 
-                        box-shadow: var(--shadow-md);
-                        transition: background-color 0.2s;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 8px;
-                    ">
-                        <svg style="width: 18px; height: 18px; fill: currentColor;" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-                        View Full Report
-                    </button>
-                </div>
-                <br><br>
             </div>
         </div>
         ${isDesktop && navHtml ? `<div class="desktop-nav-float">${navHtml}</div>` : ''}
@@ -2706,7 +2708,7 @@ function updateSheetContent(address, props, imageHtml) {
 
     // 4. Swipe Navigation (Mobile)
     if (!isDesktop && navHtml) {
-        const card = targetContent.querySelector('.property-card');
+        const card = targetContent.querySelector('.swipe-wrapper');
         if (card) {
             let touchStartX = 0;
             let touchStartY = 0;
