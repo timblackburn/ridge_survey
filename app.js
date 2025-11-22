@@ -2101,12 +2101,15 @@ function buildDistrictDetailsPanel(districtFeature) {
                 let ribbonHtml = '';
                 if (districtName === 'Ridge Historic District') {
                     const contrib = f.properties.contributing_ridge_historic_district;
-                    let ribbonIcon = 'ribbon-outline.svg';
-                    let ribbonTitle = 'Not contributing property in the Ridge Historic District';
+                    let ribbonIcon = 'ribbon-undetermined.svg';
+                    let ribbonTitle = 'Undetermined contribution to the Ridge Historic District';
 
-                    if (contrib === 'Y') {
+                    if (contrib === 'Y' || contrib === 'C') {
                         ribbonIcon = 'ribbon-gold.svg';
                         ribbonTitle = 'Contributing property to the Ridge Historic District';
+                    } else if (contrib === 'N') {
+                        ribbonIcon = 'ribbon-noncontributing.svg';
+                        ribbonTitle = 'Non-contributing property in the Ridge Historic District';
                     }
                     ribbonHtml = `<img src="${ribbonIcon}" data-tooltip="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; flex-shrink: 0; display: block;" />`;
                 }
@@ -2132,12 +2135,15 @@ function buildDistrictDetailsPanel(districtFeature) {
                 let ribbonHtml = '';
                 if (districtName === 'Ridge Historic District') {
                     const contrib = f.properties.contributing_ridge_historic_district;
-                    let ribbonIcon = 'ribbon-outline.svg';
-                    let ribbonTitle = 'Not contributing property in the Ridge Historic District';
+                    let ribbonIcon = 'ribbon-undetermined.svg';
+                    let ribbonTitle = 'Undetermined contribution to the Ridge Historic District';
 
-                    if (contrib === 'Y') {
+                    if (contrib === 'Y' || contrib === 'C') {
                         ribbonIcon = 'ribbon-gold.svg';
                         ribbonTitle = 'Contributing property to the Ridge Historic District';
+                    } else if (contrib === 'N') {
+                        ribbonIcon = 'ribbon-noncontributing.svg';
+                        ribbonTitle = 'Non-contributing property in the Ridge Historic District';
                     }
                     ribbonHtml = `<img src="${ribbonIcon}" data-tooltip="${ribbonTitle}" style="height: 24px; width: 24px; margin-left: 10px; flex-shrink: 0; display: block;" />`;
                 }
@@ -2445,11 +2451,17 @@ function updateSheetContent(address, props, imageHtml) {
             if (d === 'Ridge Historic District') {
                 // Check if contributing
                 const contrib = val(props.contributing_ridge_historic_district);
-                if (contrib === 'Y') {
-                    ribbonHtml = `<img src="ribbon-gold.svg" data-tooltip="Contributing property to the Ridge Historic District" style="height: 18px; width: 18px; margin-left: 8px; vertical-align: middle; display: inline-block;" />`;
-                } else {
-                    ribbonHtml = `<img src="ribbon-outline.svg" data-tooltip="Non-contributing property in the Ridge Historic District" style="height: 18px; width: 18px; margin-left: 8px; vertical-align: middle; display: inline-block;" />`;
+                let ribbonIcon = 'ribbon-undetermined.svg';
+                let ribbonTitle = 'Undetermined contribution to the Ridge Historic District';
+
+                if (contrib === 'Y' || contrib === 'C') {
+                    ribbonIcon = 'ribbon-gold.svg';
+                    ribbonTitle = 'Contributing property to the Ridge Historic District';
+                } else if (contrib === 'N') {
+                    ribbonIcon = 'ribbon-noncontributing.svg';
+                    ribbonTitle = 'Non-contributing property in the Ridge Historic District';
                 }
+                ribbonHtml = `<img src="${ribbonIcon}" data-tooltip="${ribbonTitle}" style="height: 18px; width: 18px; margin-left: 8px; vertical-align: middle; display: inline-block;" />`;
             }
             return `
             <li style="display: flex; align-items: center; justify-content: space-between;">
