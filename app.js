@@ -2551,16 +2551,16 @@ function updateSheetContent(address, props, imageHtml) {
     const isDesktop = window.innerWidth >= 768;
 
     targetContent.innerHTML = `
-        <div class="swipe-wrapper" style="width: 100%; min-height: 100%;">
-            <div class="sheet-header property-sheet-header">
-                <button class="close-property-button" style="position: static; margin-right: 15px; flex-shrink: 0;">&times;</button>
-                <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
-                    <h3 style="margin: 0; line-height: 1.2;">${address}</h3>
-                    ${buildingNameHtml}
-                </div>
-                ${!isDesktop ? navHtml : ''}
+        <div class="sheet-header property-sheet-header">
+            <button class="close-property-button" style="position: static; margin-right: 15px; flex-shrink: 0;">&times;</button>
+            <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
+                <h3 style="margin: 0; line-height: 1.2;">${address}</h3>
+                ${buildingNameHtml}
             </div>
-            <div class="scrollable-content">
+            ${!isDesktop ? navHtml : ''}
+        </div>
+        <div class="swipe-wrapper" style="width: 100%; min-height: 100%; display: flex; flex-direction: column; flex-grow: 1;">
+            <div class="scrollable-content" style="flex-grow: 1;">
                 ${imageHtml}
                 <div class="property-card">
                     <div class="property-section">
