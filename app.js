@@ -2715,10 +2715,16 @@ function generateFullReport(address, props, imageHtml) {
 
     const val = (field) => (field === null || typeof field === 'undefined' || String(field).trim() === '') ? 'N/A' : field;
 
-    // Extract image URL if present in imageHtml
+    // Construct Image URL from PIN
     let imgUrl = '';
-    const imgMatch = imageHtml.match(/src="([^"]+)"/);
-    if (imgMatch) imgUrl = imgMatch[1];
+    const rawPin = props.PIN ? String(props.PIN) : null;
+    if (rawPin) {
+        const cleanedPin = rawPin.replace(/^0+/, '');
+        if (cleanedPin.length > 0) {
+            const paddedPin = cleanedPin.padEnd(14, '0');
+            imgUrl = `building_photos/cook_county_assessor/${paddedPin}.jpg`;
+        }
+    }
 
     const htmlContent = `
         <!DOCTYPE html>
@@ -2874,7 +2880,7 @@ function buildPropertyCard(props) {
                 const cleanedPin = rawPin.replace(/^0+/, '');
                 if (cleanedPin.length > 0) {
                     const paddedPin = cleanedPin.padEnd(14, '0');
-                    const imgUrl = `https://maps.cookcountyil.gov/groundphotos/${paddedPin}`;
+                    const imgUrl = `building_photos/cook_county_assessor/${paddedPin}.jpg`;
                     const tempImg = new Image();
                     tempImg.src = imgUrl;
 
