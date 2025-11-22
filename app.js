@@ -2703,6 +2703,75 @@ function updateSheetContent(address, props, imageHtml) {
             generateFullReport(address, props, imageHtml);
         });
     }
+
+    // 4. Swipe Navigation (Mobile)
+    if (!isDesktop && navHtml) {
+        const card = targetContent.querySelector('.property-card');
+        if (card) {
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let currentX = 0;
+            let isSwiping = false;
+            const threshold = 50; // Minimum distance for swipe
+
+            card.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                isSwiping = true;
+                card.style.transition = 'none'; // Disable transition for direct follow
+            }, { passive: true });
+
+            card.addEventListener('touchmove', (e) => {
+                if (!isSwiping) return;
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                const diffX = touchX - touchStartX;
+                const diffY = touchY - touchStartY;
+
+                // Only handle horizontal swipes
+                if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 10) {
+                    if (e.cancelable) e.preventDefault(); // Prevent scrolling
+                    currentX = diffX;
+                    card.style.transform = `translateX(${diffX}px)`;
+                }
+            }, { passive: false });
+
+            card.addEventListener('touchend', (e) => {
+                if (!isSwiping) return;
+                isSwiping = false;
+                card.style.transition = 'transform 0.3s ease-out';
+
+                if (currentX > threshold) {
+                    // Swipe Right -> Previous
+                    if (prevBtn && !prevBtn.disabled) {
+                        card.style.transform = `translateX(100%)`;
+                        card.style.opacity = '0';
+                        setTimeout(() => prevBtn.click(), 200);
+                    } else {
+                        card.style.transform = 'translateX(0)';
+                    }
+                } else if (currentX < -threshold) {
+                    // Swipe Left -> Next
+                    if (nextBtn && !nextBtn.disabled) {
+                        card.style.transform = `translateX(-100%)`;
+                        card.style.opacity = '0';
+                        setTimeout(() => nextBtn.click(), 200);
+                    } else {
+                        card.style.transform = 'translateX(0)';
+                    }
+                } else {
+                    // Snap back
+                    card.style.transform = 'translateX(0)';
+                }
+                currentX = 0;
+            });
+        }
+    }
+
+    // Preload adjacent images
+    if (currentNavigationList) {
+        preloadAdjacentImages(props.BLDG_ID, currentNavigationList);
+    }
 }
 
 function generateFullReport(address, props, imageHtml) {
@@ -2985,6 +3054,34 @@ function buildPropertyCard(props) {
 // ---------------------------------------------------------------
 //  5. HELPER FUNCTIONS
 // ---------------------------------------------------------------
+
+/**
+ * Preloads images for the previous and next properties in the list
+ */
+function preloadAdjacentImages(currentId, list) {
+    if (!list || list.length === 0) return;
+
+    const currentIndex = list.findIndex(f => f.properties.BLDG_ID === currentId);
+    if (currentIndex === -1) return;
+
+    const indicesToPreload = [];
+    if (currentIndex > 0) indicesToPreload.push(currentIndex - 1);
+    if (currentIndex < list.length - 1) indicesToPreload.push(currentIndex + 1);
+
+    indicesToPreload.forEach(idx => {
+        const feature = list[idx];
+        const rawPin = feature.properties.PIN ? String(feature.properties.PIN) : null;
+        if (rawPin) {
+            const cleanedPin = rawPin.replace(/^0+/, '');
+            if (cleanedPin.length > 0) {
+                const paddedPin = cleanedPin.padEnd(14, '0');
+                const imgUrl = `building_photos/cook_county_assessor/${paddedPin}.jpg`;
+                const img = new Image();
+                img.src = imgUrl;
+            }
+        }
+    });
+}
 
 /**
  * Sets the panel to its default "Explore" state.
