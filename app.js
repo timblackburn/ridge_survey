@@ -1559,11 +1559,11 @@ function buildSurveyPanel() {
                 <li data-hash="survey/style"><a>Building Style</a></li>
             </ul>
             <div class="mobile-footer" style="padding: 15px 0 0 0; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
-                Explore data from the <strong>Chicago Historic Resources Survey (CHRS)</strong>, a 1996 inventory of historically and architecturally significant structures.
+                Explore data from the <strong>Chicago Historic Resources Survey (CHRS)</strong>, a 1995 inventory of historically and architecturally significant structures.
             </div>
         </div>
         <div class="desktop-footer" style="padding: 15px 20px; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; background-color: #f9f9f9;">
-            Explore data from the <strong>Chicago Historic Resources Survey (CHRS)</strong>, a 1996 inventory of historically and architecturally significant structures.
+            Explore data from the <strong>Chicago Historic Resources Survey (CHRS)</strong>, a 1995 inventory of historically and architecturally significant structures.
         </div>
     `;
     toggleBottomSheet(true);
