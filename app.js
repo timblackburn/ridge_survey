@@ -1362,11 +1362,11 @@ function buildDistrictsPanel() {
             ${nationalHtml ? `<h4 style="padding: 15px 15px 5px; margin: 0; color: #666; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">National Register Districts</h4><ul class="item-list">${nationalHtml}</ul>` : ''}
             ${(!chicagoHtml && !nationalHtml) ? '<p style="padding: 20px; text-align: center; color: #666;">No districts found in this view.</p>' : ''}
             <div class="mobile-footer" style="padding: 15px 0 0 0; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; margin-top: 15px;">
-                Browse designated historic districts. Chicago Landmark District areas are subject to additional permit requirements and approvals for alterations. Financial incentives for preservation are available in some cases.
+                Browse designated historic districts. Chicago Landmark Districts have specific preservation permit requirements, while National Register Districts are primarily honorary. Financial benefits are available for qualifying homes, though participating in these programs requires that all renovations meet strict preservation standards.
             </div>
         </div>
         <div class="desktop-footer" style="padding: 15px 20px; color: #666; font-size: 0.9em; line-height: 1.5; border-top: 1px solid #eee; background-color: #f9f9f9;">
-            Browse designated historic districts. Chicago Landmark District areas are subject to additional permit requirements and approvals for alterations. Financial incentives for preservation are available in some cases.
+            Browse designated historic districts. Chicago Landmark Districts have specific preservation permit requirements, while National Register Districts are primarily honorary. Financial benefits are available for qualifying homes, though participating in these programs requires that all renovations meet strict preservation standards.
         </div>
     `;
     toggleBottomSheet(true);
@@ -3123,7 +3123,7 @@ function showDefaultPanel() {
         </div>
         
         <p style="font-size: 0.9em; color: #666; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">
-            <em>Created by Tim Blackburn for the the Ridge Historical Society. (v0.7)</em>
+            <em>Created by Tim Blackburn. (v0.7)</em>
         </p>
     </div>
     `;
